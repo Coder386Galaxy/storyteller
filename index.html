@@ -1,0 +1,2741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Storyteller — Build Your Own Choose-Your-Own-Adventure</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Georgia,'Times New Roman',serif;background:#f4ecd8;color:#2c1810;min-height:100vh;line-height:1.6}
+header{background:linear-gradient(135deg,#2c1810,#4a2c1a);color:#f4ecd8;padding:16px 20px;border-bottom:4px solid #b8860b;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.logo{font-size:1.6em;font-weight:700;letter-spacing:2px}
+.logo small{display:block;font-size:.4em;font-weight:400;font-style:italic;letter-spacing:3px;opacity:.75}
+.hd-r{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input,select,textarea,button{font-family:inherit;font-size:1em}
+button{cursor:pointer;border:none;border-radius:6px;padding:8px 14px;transition:all .15s;font-weight:700}
+.btn{background:#8b2500;color:#fff}
+.btn:hover{background:#c9502a}
+.btn-gold{background:#b8860b;color:#2c1810}
+.btn-gold:hover{background:#d4a017}
+.btn-green{background:#15803d;color:#fff}
+.btn-green:hover{background:#16a34a}
+.btn-red{background:#991b1b;color:#fff}
+.btn-red:hover{background:#b91c1c}
+.btn-sec{background:#d4c4a8;color:#2c1810}
+.btn-sec:hover{background:#c4b498}
+nav{background:#faf3e3;border-bottom:2px solid #d4c4a8;display:flex;gap:2px;padding:0 12px}
+nav button{background:transparent;color:#2c1810;border-bottom:3px solid transparent;border-radius:0;padding:12px 16px;font-weight:400}
+nav button.active{color:#8b2500;border-bottom-color:#8b2500;font-weight:700}
+nav button:hover{background:rgba(139,37,0,.07)}
+nav .ai-tab{background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(37,99,235,.12));color:#6d28d9;font-weight:600}
+nav .ai-tab.active{background:linear-gradient(135deg,rgba(124,58,237,.22),rgba(37,99,235,.22));color:#6d28d9;border-bottom-color:#6d28d9}
+nav .libcount{background:#b8860b;color:#2c1810;font-size:.7em;padding:2px 7px;border-radius:10px;font-weight:700;margin-left:4px}
+main{max-width:1100px;margin:0 auto;padding:24px 20px}
+.tab{display:none}.tab.active{display:block;animation:fi .25s}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+h2{color:#8b2500;margin-bottom:6px;border-bottom:2px solid #b8860b;padding-bottom:6px}
+.sub{color:#6b4c3b;font-style:italic;margin-bottom:18px}
+.card{background:#faf3e3;border:1px solid #d4c4a8;border-radius:8px;padding:20px;margin-bottom:16px;box-shadow:0 2px 6px rgba(44,24,16,.1)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+input[type=text],textarea,select{width:100%;padding:8px 10px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;color:#2c1810;margin-bottom:8px}
+textarea{resize:vertical;min-height:120px;line-height:1.6;font-family:Georgia,serif}
+label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4px;margin-top:6px}
+
+/* HOME */
+.hero{text-align:center;padding:20px 10px}
+.hero h1{font-size:2em;color:#8b2500;border:none;margin-bottom:10px}
+.hero p{font-size:1.05em;color:#6b4c3b;max-width:600px;margin:0 auto 20px}
+.tcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:20px}
+.tcard{background:#faf3e3;border:2px solid #d4c4a8;border-radius:10px;padding:18px;text-align:center;cursor:pointer;transition:all .2s}
+.tcard:hover{border-color:#8b2500;transform:translateY(-3px);box-shadow:0 6px 14px rgba(44,24,16,.15)}
+.tcard .ti{font-size:2em;margin-bottom:6px}
+.tcard h3{color:#8b2500;margin-bottom:4px}
+.tcard p{font-size:.85em;color:#6b4c3b}
+
+/* CYOA BUILDER */
+.cyoa{display:grid;grid-template-columns:240px 1fr;gap:16px}
+@media(max-width:760px){.cyoa{grid-template-columns:1fr}}
+.sidebar{background:#faf3e3;border:1px solid #d4c4a8;border-radius:8px;padding:12px;max-height:70vh;overflow-y:auto}
+.sidebar h4{color:#8b2500;border-bottom:1px solid #d4c4a8;padding-bottom:6px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.plist{display:flex;flex-direction:column;gap:4px}
+.pitem{padding:8px 10px;border-radius:6px;cursor:pointer;background:#fff;border:2px solid transparent;font-size:.9em;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.pitem:hover{background:#fff8e7}
+.pitem.active{border-color:#8b2500;background:#fff8e7}
+.pitem.death{border-left:4px solid #991b1b}
+.pitem.victory{border-left:4px solid #15803d}
+.pitem.continue{border-left:4px solid #b8860b}
+.pitem .pt{font-weight:700;color:#8b2500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.pb{font-size:.7em;padding:2px 6px;border-radius:6px;font-weight:700;white-space:nowrap}
+.pb-start{background:#b8860b;color:#2c1810}
+.pb-death{background:#991b1b;color:#fff}
+.pb-victory{background:#15803d;color:#fff}
+.editor{background:#fff;border:1px solid #d4c4a8;border-radius:8px;padding:18px;box-shadow:0 2px 6px rgba(44,24,16,.08)}
+.ptitle{font-size:1.3em;font-weight:700;color:#8b2500;border:none!important;border-bottom:2px solid #b8860b!important;border-radius:0!important;padding:4px 0!important;background:transparent!important;margin-bottom:10px!important}
+.ptitle:focus{outline:none;border-bottom-color:#8b2500!important}
+.ptext{min-height:220px}
+.type-row{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px}
+.type-row button{flex:1;min-width:100px;padding:8px;opacity:.6}
+.type-row button.active{opacity:1;box-shadow:inset 0 0 0 2px #fff}
+.choices{margin-top:10px}
+.choice{background:#f4ecd8;border:1px dashed #d4c4a8;border-radius:6px;padding:10px;margin-bottom:8px}
+.choice-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.cl{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#8b2500;color:#fff;font-weight:700;font-size:.85em;flex-shrink:0}
+.choice-head input{margin:0;flex:1}
+.choice-head select{margin:0;width:auto;font-size:.88em}
+.xbtn{background:transparent;color:#991b1b;font-size:1.2em;padding:2px 8px}
+.xbtn:hover{background:#fee2e2}
+.trow{display:none;gap:6px;align-items:center}
+.trow.show{display:flex}
+.tgin{padding:6px 8px;border:1px solid #d4c4a8;border-radius:4px;font-size:.9em;background:#fff;flex:1;margin:0}
+.tgin.bad{border-color:#991b1b;background:#fee2e2}
+.tgin.good{border-color:#15803d;background:#dcfce7}
+.mkbtn{padding:6px 10px;background:linear-gradient(135deg,#b8860b,#d4a017);color:#2c1810;font-size:.8em;border-radius:4px;white-space:nowrap;flex-shrink:0}
+.mkbtn:hover{background:#c9940d}
+.mkbtn.exists{display:none}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid #d4c4a8}
+.status{margin-left:auto;color:#6b4c3b;font-style:italic;font-size:.9em;align-self:center}
+
+/* PLAYER MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.player{background:#f4ecd8;border:3px solid #b8860b;border-radius:12px;max-width:640px;width:100%;max-height:90vh;overflow-y:auto;padding:30px;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative}
+.player-x{position:absolute;top:10px;right:12px;background:transparent;font-size:1.4em;color:#6b4c3b;padding:4px 10px}
+.player-x:hover{color:#8b2500}
+.player h2{border:none;text-align:center}
+.ptxt{font-size:1.05em;line-height:1.8;margin-bottom:20px;white-space:pre-wrap}
+.pchoice{display:block;width:100%;background:#fff;border:2px solid #d4c4a8;border-left:5px solid #8b2500;border-radius:8px;padding:12px 16px;text-align:left;font-family:inherit;margin-bottom:8px;transition:all .15s;line-height:1.5}
+.pchoice:hover{border-color:#8b2500;background:#fff8e7}
+.pchoice em{font-style:italic;color:#8b2500;opacity:.85}
+.pchoice .l{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:#8b2500;color:#fff;font-weight:700;margin-right:10px;font-size:.9em}
+.pchoice.cont{border-left-color:#b8860b;background:#fff8e7;font-style:italic;text-align:center}
+.pchoice.cont .l{background:#b8860b}
+.pend{text-align:center;padding:20px 0}
+.pend.death h2{color:#991b1b}
+.pend.victory h2{color:#15803d}
+.pend p{white-space:pre-wrap;font-size:1.05em;margin:16px 0;text-align:left;line-height:1.8}
+
+/* ===== LIBRARY / PUBLISH ===== */
+.pubw{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
+.pubw.open{display:flex}
+.pubbox{background:#f4ecd8;border:3px solid #b8860b;border-radius:14px;max-width:620px;width:100%;padding:30px;box-shadow:0 20px 60px rgba(0,0,0,.6);position:relative;max-height:90vh;overflow-y:auto}
+.pubbox h2{border:none;text-align:center;margin-bottom:6px}
+.pubsub{text-align:center;color:#6b4c3b;font-style:italic;margin-bottom:18px}
+.pubbox .pub-x{position:absolute;top:10px;right:14px;background:transparent;font-size:1.4em;color:#6b4c3b;padding:4px 10px}
+.pubbox .pub-x:hover{color:#8b2500}
+.pubstep{display:none}.pubstep.active{display:block}
+.pubbox label{display:block;margin-top:12px;font-weight:700;color:#6b4c3b;margin-bottom:4px}
+.pubbox input,.pubbox textarea,.pubbox select{width:100%;padding:8px 10px;border:2px solid #d4c4a8;border-radius:8px;background:#fff;font-family:inherit;font-size:1em;line-height:1.5}
+.pubbox input:focus,.pubbox textarea:focus{outline:none;border-color:#b8860b}
+.pub-series-chip{background:#fff8e7;border:1px solid #b8860b;color:#8b2500;border-radius:16px;padding:3px 10px;font-size:.82em;font-weight:700;cursor:pointer;transition:all .15s}
+.pub-series-chip:hover{background:#b8860b;color:#fff}
+.rating-card{background:#fff;border:3px solid;border-radius:14px;padding:24px;text-align:center;margin:16px 0}
+.rating-card.st1{border-color:#22c55e}.rating-card.st2{border-color:#84cc16}.rating-card.st3{border-color:#eab308}.rating-card.st4{border-color:#f97316}.rating-card.st5{border-color:#dc2626}
+.rating-big{font-size:3em;font-weight:900;margin:8px 0}
+.rating-sub{font-size:1.1em;color:#6b4c3b;margin-bottom:10px}
+.rating-desc{font-size:.95em;line-height:1.6;text-align:left;background:#faf3e3;border-radius:8px;padding:12px;margin-top:10px}
+.rating-reason{font-size:.88em;line-height:1.5;text-align:left;color:#6b4c3b;margin-top:10px;font-style:italic}
+.scan{text-align:center;padding:30px 20px}
+.dots span{display:inline-block;animation:blink 1.2s infinite}
+.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+.scan .dots{font-size:2em;letter-spacing:6px;color:#8b2500}
+@keyframes blink{0%,100%{opacity:.2}50%{opacity:1}}
+.library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:14px}
+.lib-card{background:#fff;border:2px solid #d4c4a8;border-radius:10px;padding:16px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column}
+.lib-card:hover{border-color:#8b2500;transform:translateY(-2px);box-shadow:0 6px 14px rgba(44,24,16,.12)}
+.lib-card .lt{font-weight:700;color:#8b2500;font-size:1.1em;margin-bottom:4px}
+.lib-card .ls{font-size:.78em;color:#6b4c3b;font-style:italic;margin-bottom:8px}
+.lib-card .ld{font-size:.88em;line-height:1.5;color:#2c1810;flex:1;margin-bottom:10px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.lmeta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.rb{font-size:.72em;padding:3px 8px;border-radius:10px;font-weight:900;color:#fff;letter-spacing:.5px}
+.rb.st1{background:#22c55e}.rb.st2{background:#84cc16}.rb.st3{background:#eab308;color:#2c1810}.rb.st4{background:#f97316}.rb.st5{background:#dc2626}
+.rb.school{background:linear-gradient(135deg,#3b82f6,#06b6d4);color:#fff;animation:schoolpulse 2s ease-in-out infinite}
+@keyframes schoolpulse{0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.4)}50%{box-shadow:0 0 0 6px rgba(59,130,246,0)}}
+.liba{font-size:.75em;color:#6b4c3b}
+.lstats{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed #d4c4a8;font-size:.82em;color:#6b4c3b}
+.lstat{display:inline-flex;align-items:center;gap:4px}
+.lstat b{color:#8b2500}
+.lstat .lspct{color:#15803d;font-weight:700}
+.lstat.bad .lspct{color:#dc2626}
+.lstat.warn .lspct{color:#b8860b}
+.quick-pub{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.quick-pub:hover{background:#059669}
+.series-head{margin-top:18px;margin-bottom:6px;color:#8b2500;font-weight:700;font-size:1.1em;border-bottom:1px solid #d4c4a8;padding-bottom:4px}
+.no-lib{text-align:center;padding:40px;color:#6b4c3b;font-style:italic}
+/* Reading view for published */
+.readview{position:fixed;inset:0;background:#f4ecd8;z-index:400;overflow-y:auto;display:none}
+.readview.open{display:block}
+/* Age gate */
+.agegate{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+.agegate.open{display:flex}
+.agebox{background:#1a0a0a;border:3px solid #dc2626;border-radius:14px;max-width:520px;width:100%;padding:28px;color:#f4ecd8;box-shadow:0 0 60px rgba(220,38,38,.5);position:relative}
+.agebox h2{color:#dc2626;border:none;text-align:center;font-size:1.7em}
+.agebox .warn{text-align:center;font-size:3em;margin:8px 0}
+.agebox .sub{color:#d4a8a8;text-align:center;margin-bottom:16px}
+.agebox label{color:#e8b4b4;margin-top:12px}
+.agebox input{background:#2a1515;border-color:#8b1a1a;color:#f4ecd8}
+.agebox input:focus{border-color:#dc2626;outline:0;box-shadow:0 0 0 2px rgba(220,38,38,.3)}
+.id-scanner{border:3px dashed #dc2626;border-radius:10px;padding:30px 20px;text-align:center;margin:14px 0;background:linear-gradient(135deg,rgba(220,38,38,.05),rgba(0,0,0,.3))}
+.id-scan-btn{background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;font-size:1.1em;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font-weight:700;font-family:inherit}
+.id-scan-btn:hover{background:#b91c1c}
+.id-scanner .scanline{height:4px;background:linear-gradient(90deg,transparent,#dc2626,transparent);margin:10px 0;border-radius:2px;animation:scanmove 1.5s ease-in-out infinite;display:none}
+.id-scanner.scanning .scanline{display:block}
+@keyframes scanmove{0%{transform:translateY(-30px)}50%{transform:translateY(30px)}100%{transform:translateY(-30px)}}
+.id-result{text-align:center;padding:20px;display:none}
+.id-result.approved{display:block;color:#22c55e}
+.id-result.denied{display:block;color:#dc2626}
+.id-big{font-size:2.5em;margin-bottom:8px}
+.agebox .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.agebox .deny-note{background:#2a1515;border-left:3px solid #dc2626;padding:8px 12px;margin-top:10px;font-size:.85em;color:#e8b4b4;border-radius:4px}
+</style>
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#2c1810;color:#f4ecd8;padding:10px 20px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.3);opacity:0;transition:all .25s;z-index:200;font-weight:700}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* FREE WRITE */
+#fw{width:100%;min-height:500px;padding:18px;border:1px solid #d4c4a8;border-radius:8px;background:#fffef9;font-family:Georgia,serif;font-size:1.05em;line-height:1.7;resize:vertical}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📖 Storyteller<small>WRITE YOUR OWN ADVENTURE</small></div>
+    <div class="hd-r">
+      <input type="text" id="storyTitle" placeholder="Story title..." style="background:rgba(255,255,255,.1);border:1px solid #b8860b;color:#f4ecd8;padding:6px 10px;border-radius:4px;min-width:180px">
+      <button class="btn btn-sec" onclick="newStory()" title="Start a brand new story (clears the current draft)">✨ New</button>
+      <button class="btn btn-gold" onclick="switchTab('cyoa')">✍️ Build</button>
+      <button class="btn btn-sec" onclick="playStory()">▶ Play</button>
+      <button class="btn quick-pub" onclick="startPublish(true)" style="padding:7px 12px;font-size:.85em" title="Quick publish (Ctrl+Enter)">⚡ Publish</button>
+      <button class="btn btn-sec" id="ageBadge" onclick="editBirthday()" style="padding:7px 10px;font-size:.8em;display:none" title="Your age setting — click to change">🎂 Set age</button>
+      <button class="btn" id="proBadge" onclick="showProPage()" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#2c1810;padding:7px 12px;font-size:.85em;display:inline-flex;align-items:center;gap:4px" title="Storyteller Pro">✨ Pro</button>
+    </div>
+</header>
+
+<nav>
+  <button data-tab="home" class="active">🏠 Home</button>
+  <button data-tab="cyoa">🔀 Build</button>
+  <button data-tab="convert" class="ai-tab">✨ AI Convert</button>
+  <button data-tab="lib">📚 Library <span class="libcount" id="libCount">0</span></button>
+</nav>
+
+<main>
+
+<!-- HOME -->
+<section id="tab-home" class="tab active">
+  <div class="hero">
+    <h1>✨ Storyteller — Write Your Own Adventure ✨</h1>
+    <p>Build branching <b>choose-your-own-adventure</b> stories right in your browser. Write scenes, add choices, end in <b style="color:#991b1b">death</b> or <b style="color:#15803d">victory</b>. Paste a rough draft and AI turns it into a playable CYOA — or start from scratch.</p>
+    <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-gold" onclick="newStory(true)" style="font-size:1.15em;padding:14px 26px">📝 Start writing</button>
+        <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.05em;padding:13px 22px" onclick="switchTab('convert')">✨ Paste a story (AI finalizes it)</button>
+        <button class="btn" onclick="playStory()">▶ Play your story</button>
+      </div>
+    <p style="margin-top:12px;font-size:.85em;color:#6b4c3b;max-width:620px;margin-left:auto;margin-right:auto"><b>Two ways to build:</b> craft scenes one-by-one with A/B/C branches, or paste prose with inline choices (like <code style="background:#fff;border:1px solid #d4c4a8;border-radius:4px;padding:0 5px">A) Go left</code>) and AI wires them into a working game. Press <kbd style="background:#fff;border:1px solid #d4c4a8;border-radius:4px;padding:1px 6px;font-family:monospace">Ctrl+Enter</kbd> to jump to the next scene instantly.</p>
+    <div class="tcards">
+      <div class="tcard" onclick="switchTab('cyoa')"><div class="ti">🔀</div><h3>Build</h3><p>Write passages. Add choices, branches, death, and victory endings. Everything saves automatically.</p></div>
+      <div class="tcard" onclick="switchTab('convert')"><div class="ti">✨</div><h3>AI Convert</h3><p>Paste a story — with or without inline choices — and AI finalizes it into a playable CYOA.</p></div>
+      <div class="tcard" onclick="switchTab('lib')"><div class="ti">📚</div><h3>Library</h3><p>Published stories grouped by series, with real play counts and honest first-try win rates.</p></div>
+      <div class="tcard" onclick="playStory()"><div class="ti">▶️</div><h3>Play</h3><p>Test your adventure like a reader, or import & play a friend's story from a share code.</p></div>
+    </div>
+    <div class="card" style="text-align:left;margin-top:24px">
+      <h3 style="color:#8b2500;margin-bottom:8px">🎯 How it works</h3>
+      <div style="margin-top:10px">
+        <ol style="padding-left:20px;line-height:1.9;max-width:600px;margin:0 auto">
+          <li>Hit <b>📝 Start writing</b> — a passage named <b>start</b> is waiting for you.</li>
+          <li>Write a scene. For narration/dialogue, use <b>💬 Continue</b> (readers tap Continue →). For branches, click <b>+ Add choice</b>.</li>
+          <li>Each choice can lead to another passage, to a <b>💀 death</b> ending, or a <b>🏆 victory</b> ending.</li>
+          <li>Click <b>⚡ Publish</b>, give it a <b>title</b>, <b>description</b>, and any <b>series</b> it belongs to. AI age-rates it (ST-1 through ST-5) and saves it to your library.</li>
+          <li>Share with a friend using the 🔗 button — they get a code they can paste to play your story.</li>
+        </ol>
+      </div>
+      <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;font-size:.88em;color:#6b4c3b">
+        <div style="background:#fff8e7;border:1px dashed #b8860b;border-radius:8px;padding:10px"><b>🔒 Private by default</b><br>Everything stays in your browser (localStorage). Nothing is uploaded unless you share a code.</div>
+        <div style="background:#fff8e7;border:1px dashed #b8860b;border-radius:8px;padding:10px"><b>🏫 School-friendly flag</b><br>Stories without intense content get an ST-1/ST-2 badge so they're safe in class.</div>
+        <div style="background:#fff8e7;border:1px dashed #b8860b;border-radius:8px;padding:10px"><b>👤 Age-aware</b><br>Set your birthday once. Mature stories require age verification before opening.</div>
+        <div style="background:#fff8e7;border:1px dashed #b8860b;border-radius:8px;padding:10px"><b>📁 Series</b><br>Group sequels & themed stories into series; a story can live in multiple series at once.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BUILD CYOA -->
+<section id="tab-cyoa" class="tab">
+  <h2>🔀 Build Your Adventure</h2>
+  <p class="sub">Write passages. Add A/B/C/D choices. Each choice goes to another passage, death, or victory.</p>
+  <div class="cyoa">
+    <div class="sidebar">
+      <h4>Passages <button class="btn btn-gold btn-sm" style="padding:4px 10px;font-size:.85em" onclick="newPassage()">+ New</button></h4>
+      <div class="plist" id="plist"></div>
+    </div>
+    <div class="editor" id="editor">
+      <div class="empty" id="noSel" style="padding:40px 20px">Select a passage on the left, or click <b>"+ New"</b> to start writing.</div>
+      <div id="editForm" style="display:none">
+        <div id="crumb" style="display:none;margin-bottom:8px;font-size:.9em;color:#6b4c3b">
+          <button class="btn btn-sec" style="padding:4px 10px;font-size:.85em" onclick="goBack()">← Back to previous</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" class="ptitle" id="ptitle" placeholder="Passage label (e.g. start, cave, dragon)" style="flex:1">
+          <span id="pbadge" class="pb pb-start" style="display:none">START</span>
+        </div>
+        <label>Passage text</label>
+        <textarea class="ptext" id="ptext" placeholder="Start writing your scene here...&#10;&#10;Describe where the reader is, what they see, what's happening. When you want to add a choice, click 💬 Add choice/branch below. Otherwise just keep hitting ➡ Next scene (or Ctrl+Enter) to write straight through dialogue and narration."></textarea>
+
+        <div id="mediaSection" style="margin-top:10px">
+          <div style="display:flex;align-items:center;gap:8px;margin:6px 0 8px">
+            <label style="margin:0">🖼 Media <span class="pro-only-tag" style="display:none;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#2c1810;font-size:.7em;padding:2px 6px;border-radius:8px;font-weight:900;letter-spacing:.5px">PRO</span></label>
+            <span style="flex:1"></span>
+            <button type="button" class="btn btn-sec" style="padding:4px 10px;font-size:.8em" id="addImgBtn" onclick="proGateMedia('img')">🖼 Add photo</button>
+            <button type="button" class="btn btn-sec" style="padding:4px 10px;font-size:.8em" id="addVidBtn" onclick="proGateMedia('vid')">🎬 Add video</button>
+            <button type="button" class="btn btn-sec" style="padding:4px 10px;font-size:.8em" id="addSndBtn" onclick="proGateMedia('snd')">🔊 Add sound</button>
+          </div>
+          <div id="mediaFields"></div>
+          <div id="mediaPreview"></div>
+        </div>
+
+        <label>What kind of passage is this?</label>
+        <div class="type-row">
+          <button class="btn btn-sec" data-type="normal" onclick="setType('normal')">📖 Normal (choices)</button>
+          <button class="btn btn-gold" data-type="continue" onclick="setType('continue')">💬 Continue (dialog/narration)</button>
+          <button class="btn btn-red" data-type="death" onclick="setType('death')">💀 Death Ending</button>
+          <button class="btn btn-green" data-type="victory" onclick="setType('victory')">🏆 Victory Ending</button>
+        </div>
+        <label>Choices <span id="choiceCount" style="font-weight:400;color:#6b4c3b"></span>
+          <button class="btn btn-gold" style="padding:4px 10px;font-size:.8em;float:right" onclick="addChoiceAndCreate()" title="Add a choice and immediately create the passage it leads to">+ Choice & New Passage</button>
+        </label>
+        <div class="choices" id="choices"></div>
+        <button class="btn btn-sec" onclick="addChoice()" id="addChoiceBtn" style="width:100%;justify-content:center;margin-bottom:6px">+ Add Choice</button>
+        <div class="toolbar">
+          <button class="btn btn-gold" onclick="savePassage()">💾 Save</button>
+          <button class="btn" style="background:linear-gradient(135deg,#b8860b,#d97706)" onclick="addNextScene()" title="Create the next scene and jump to it (Ctrl+Enter in text)">➡ Next scene</button>
+          <button class="btn" onclick="playStory()">▶ Play</button>
+          <button class="btn quick-pub" onclick="startPublish(true)" title="Publish in one click">⚡ Publish</button>
+          <button class="btn btn-sec" onclick="exportHTML()">⬇ Export</button>
+          <button class="btn btn-red" onclick="deletePassage()" title="Delete this passage" style="padding:6px 10px;font-size:.85em">🗑 Passage</button>
+          <button class="btn btn-red" onclick="deleteStory()" title="Delete the entire story" style="padding:6px 10px;font-size:.85em;background:#7f1d1d">🗑 Story</button>
+          <span class="status" id="stat"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AI CONVERT -->
+<section id="tab-convert" class="tab">
+  <h2>✨ Paste Story → AI Finalizes</h2>
+  <p class="sub">Paste your writing and your choices below. AI connects everything into a playable CYOA — adding Continue → links where you didn't write choices, filling in missing endings, and cleaning up paths. You can write choices inline with <b>A/B/C</b> labels, or just let AI add them.</p>
+  <div class="card" style="background:linear-gradient(135deg,#f5f0ff,#faf3e3);border-color:#7c3aed">
+    <label for="convText" style="color:#6d28d9">📝 Paste your story (with or without choices)</label>
+    <textarea id="convText" placeholder="Just paste. You can include choices like this:&#10;&#10;You stand at a fork in the road.&#10;A) Take the path through the woods&#10;B) Follow the river&#10;C) Turn back&#10;&#10;The woods are dark and silent...&#10;&#10;Tip: write each scene as a paragraph. Label choices with 'A)', 'B.', 'A:', '1)', bullet points, or just list them — AI figures it out. If you don't write any choices, AI adds a few balanced ones for you." style="min-height:420px;font-family:Georgia,serif;line-height:1.7"></textarea>
+    <div style="background:#fff;border:1px dashed #7c3aed;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.85em;color:#4c1d95">
+      <b style="color:#6d28d9">How it works:</b>
+      <ul style="margin:4px 0 0 18px;line-height:1.5">
+        <li>Each paragraph becomes a scene, chained together with Continue → buttons.</li>
+        <li>Lines that look like choices (A/B/C, bullets, numbered) get turned into real branching buttons.</li>
+        <li>AI fills in death and victory endings, connects loose ends, and names scenes.</li>
+        <li>If you don't write any choices, AI adds a few balanced ones automatically.</li>
+      </ul>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;justify-content:center">
+      <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.15em;padding:14px 32px" onclick="runConvert()">✨ Finalize Into CYOA</button>
+      <button class="btn btn-sec" onclick="loadSampleConv()">📋 Load example story with choices</button>
+      <button class="btn btn-sec" onclick="loadSampleLinear()">📋 Load plain story (AI adds choices)</button>
+      <button class="btn btn-sec" onclick="document.getElementById('convText').value='';document.getElementById('convResult').style.display='none';toast('Cleared')">🗑 Clear</button>
+    </div>
+    <div id="convProg" style="display:none;text-align:center;padding:20px;margin-top:10px">
+      <div class="dots" style="color:#7c3aed;font-size:1.6em;letter-spacing:6px"><span>●</span><span>●</span><span>●</span></div>
+      <p id="convProgText" style="margin-top:10px;color:#6b4c8a;font-style:italic">Reading your story...</p>
+    </div>
+  </div>
+  <div id="convResult" style="display:none">
+    <div class="card" style="border-color:#15803d">
+      <h3 style="color:#15803d;margin-bottom:6px">✅ Ready to play!</h3>
+      <p id="convResultText" style="margin-bottom:14px"></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-gold" onclick="switchTab('cyoa')">✍️ Edit in builder</button>
+        <button class="btn" onclick="playStory()">▶ Test play</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LIBRARY -->
+<section id="tab-lib" class="tab">
+  <h2>📚 Adventures Library</h2>
+  <p class="sub">Play adventures from the community and your own published stories.</p>
+
+  <div class="share-bar" style="background:#fff8e7;border:1px dashed #b8860b;border-radius:10px;padding:12px 14px;margin-bottom:18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <div style="flex:1;min-width:220px">
+      <div style="font-weight:700;margin-bottom:4px">📥 Play a friend's adventure</div>
+      <input type="text" id="importCode" placeholder="Paste a story code here..." style="width:100%;padding:7px 10px;border:1px solid #d4c4a8;border-radius:6px;font-family:inherit;font-size:.9em">
+    </div>
+    <button class="btn btn-gold" onclick="importStoryCode()">➕ Import &amp; Play</button>
+    <button class="btn btn-sec" onclick="showExportCode()">🔗 Share this page</button>
+  </div>
+
+  <h3 style="color:#8b2500;margin:18px 0 10px;border-bottom:1px solid #d4c4a8;padding-bottom:4px">🌟 Community Adventures</h3>
+  <p class="sub" style="margin-top:0">Stories by other storytellers. Click any card to play.</p>
+  <div id="commList"></div>
+
+  <h3 style="color:#8b2500;margin:22px 0 10px;border-bottom:1px solid #d4c4a8;padding-bottom:4px">✍️ My Published Stories</h3>
+  <div id="libList"></div>
+</section>
+
+</main>
+
+<datalist id="passages-dl"></datalist>
+
+<!-- PUBLISH WIZARD -->
+<div class="pubw" id="pubw">
+  <div class="pubbox" id="pubbox"></div>
+</div>
+
+<!-- READ VIEW -->
+<div class="readview" id="readview">
+  <div class="readview-in">
+    <div style="margin-bottom:16px">
+      <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>
+    </div>
+    <div id="readbody"></div>
+  </div>
+</div>
+
+<!-- PLAYER -->
+<div class="overlay" id="overlay">
+  <div class="player" id="player"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- AGE GATE (ST-5) -->
+<div class="agegate" id="agegate">
+  <div class="agebox" id="agebox"></div>
+</div>
+
+<script>
+// ====== STATE ======
+let cyoa = {passages:{}};  // pid -> {id, title, text, type, choices:[{letter,text,target,targetType}]}
+let curPid = null;
+let prevPid = null; // for "back" breadcrumb
+let freeText = '';
+let saveTimer=null;
+const LS_CYOA='sf_cyoa', LS_FREE='sf_free', LS_TITLE='sf_title', LS_CURPID='sf_curpid';
+
+function uid(){return 'p'+Math.random().toString(36).slice(2,9);}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function slug(s){return (s||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');}
+
+// === MEDIA HELPERS (Pro feature) ===
+function isImageUrl(u){return /\.(png|jpe?g|gif|webp|svg|avif)(\?.*)?$/i.test(u)||u.startsWith('data:image/');}
+function isVideoUrl(u){return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(u)||u.includes('youtube.com/embed')||u.includes('youtu.be/')||u.includes('vimeo.com/')||u.startsWith('data:video/');}
+function isAudioUrl(u){return /\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/i.test(u)||u.startsWith('data:audio/');}
+function youtubeEmbed(u){const m=u.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);return m?'https://www.youtube.com/embed/'+m[1]:null;}
+function vimeoEmbed(u){const m=u.match(/vimeo\.com\/(\d+)/);return m?'https://player.vimeo.com/video/'+m[1]:null;}
+function renderMediaHTML(p,opts){
+  opts=opts||{};
+  const out=[];
+  const media=p&&p.media;
+  if(!media)return '';
+  if(media.img){
+    const url=esc(media.img);
+    const cap=media.imgCap?`<div style="font-size:.8em;font-style:italic;color:#6b4c3b;text-align:center;margin:4px 0 10px">${esc(media.imgCap)}</div>`:'';
+    out.push(`<div class="media-block" style="margin:10px 0"><img src="${url}" alt="${esc(media.imgCap||'')}" style="width:100%;border-radius:10px;border:2px solid #d4c4a8;display:block" loading="lazy" onerror="this.style.display='none';this.nextElementSibling && (this.nextElementSibling.style.display='none')">${cap}</div>`);
+  }
+  if(media.vid){
+    let url=media.vid;let embed=false;
+    const yt=youtubeEmbed(url),vm=vimeoEmbed(url);
+    let tag;
+    if(yt){tag=`<iframe src="${esc(yt)}" style="width:100%;aspect-ratio:16/9;border-radius:10px;border:2px solid #d4c4a8" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>`;}
+    else if(vm){tag=`<iframe src="${esc(vm)}" style="width:100%;aspect-ratio:16/9;border-radius:10px;border:2px solid #d4c4a8" allowfullscreen></iframe>`;}
+    else tag=`<video src="${esc(url)}" controls style="width:100%;border-radius:10px;border:2px solid #d4c4a8" preload="metadata"></video>`;
+    out.push(`<div class="media-block" style="margin:10px 0">${tag}</div>`);
+  }
+  if(media.snd){
+    const url=esc(media.snd);
+    const label=esc(media.sndCap||'🔊 Sound effect');
+    out.push(`<div class="media-block" style="margin:10px 0"><div style="background:#fff8e7;border:2px solid #b8860b;border-radius:10px;padding:10px;display:flex;align-items:center;gap:10px"><span style="font-size:1.6em">🔊</span><audio controls src="${url}" style="flex:1" preload="none"></audio><span style="font-size:.85em;color:#6b4c3b">${label}</span></div></div>`);
+    if(opts.autoplaySnd){out.push(`<script>try{document.currentScript.previousElementSibling.querySelector('audio').play().catch(()=>{});}catch(e){}<\/script>`);}
+  }
+  return out.join('');
+}
+function mediaFromForm(){
+  const img=document.getElementById('mImg')?document.getElementById('mImg').value.trim():'';
+  const imgCap=document.getElementById('mImgCap')?document.getElementById('mImgCap').value.trim():'';
+  const vid=document.getElementById('mVid')?document.getElementById('mVid').value.trim():'';
+  const snd=document.getElementById('mSnd')?document.getElementById('mSnd').value.trim():'';
+  const sndCap=document.getElementById('mSndCap')?document.getElementById('mSndCap').value.trim():'';
+  const m={};
+  if(img){m.img=img;if(imgCap)m.imgCap=imgCap;}
+  if(vid)m.vid=vid;
+  if(snd){m.snd=snd;if(sndCap)m.sndCap=sndCap;}
+  return m;
+}
+function renderMediaEditor(){
+  const box=document.getElementById('mediaFields');
+  if(!box)return;
+  const p=curPid?cyoa.passages[curPid]:null;
+  const m=(p&&p.media)||{};
+  // Show pro tag if not pro
+  const tags=document.querySelectorAll('.pro-only-tag');tags.forEach(t=>t.style.display=isPro?'none':'inline-block');
+  ['addImgBtn','addVidBtn','addSndBtn'].forEach(id=>{
+    const b=document.getElementById(id);if(b)b.disabled=!isPro;
+    if(b)b.style.opacity=isPro?1:.55;
+  });
+  if(!isPro){
+    box.innerHTML=`<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px dashed #b8860b;border-radius:8px;padding:10px 14px;font-size:.9em;color:#78350f;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:1.4em">✨</span>
+      <span style="flex:1;min-width:200px"><b>Storyteller Pro</b> unlocks photos, videos, and sound effects in your passages.</span>
+      <button class="btn" style="background:linear-gradient(135deg,#fbbf24,#d97706);color:#2c1810;padding:5px 12px;font-size:.85em" onclick="showProPage('media')">✨ Upgrade</button>
+    </div>`;
+    document.getElementById('mediaPreview').innerHTML='';
+    return;
+  }
+  box.innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
+      <div>
+        <label style="margin-top:0">🖼 Image URL</label>
+        <input type="text" id="mImg" value="${esc(m.img||'')}" placeholder="https://... or paste an image URL" oninput="renderMediaPreview()">
+        <label>Caption (optional)</label>
+        <input type="text" id="mImgCap" value="${esc(m.imgCap||'')}" placeholder="Caption under the image">
+      </div>
+      <div>
+        <label style="margin-top:0">🎬 Video URL</label>
+        <input type="text" id="mVid" value="${esc(m.vid||'')}" placeholder="mp4/webm, YouTube, or Vimeo link" oninput="renderMediaPreview()">
+        <label>🔊 Sound effect URL</label>
+        <input type="text" id="mSnd" value="${esc(m.snd||'')}" placeholder="mp3/wav URL" oninput="renderMediaPreview()">
+        <label>Sound label (optional)</label>
+        <input type="text" id="mSndCap" value="${esc(m.sndCap||'')}" placeholder="e.g. Creaking door">
+      </div>
+    </div>
+    <div style="margin-top:6px;font-size:.78em;color:#6b4c3b">Tip: paste a direct link to an image/video/sound hosted anywhere (Imgur, YouTube, your cloud storage, etc). You can also upload a file:
+      <label class="btn btn-sec" style="padding:3px 8px;font-size:.8em;display:inline-block;margin-left:4px;cursor:pointer">📁 Upload file<input type="file" id="mFile" accept="image/*,video/*,audio/*" style="display:none" onchange="handleMediaUpload(event)"></label>
+    </div>`;
+  renderMediaPreview();
+}
+function handleMediaUpload(e){
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const url=reader.result;
+    if(f.type.startsWith('image/')){document.getElementById('mImg').value=url;}
+    else if(f.type.startsWith('video/')){document.getElementById('mVid').value=url;}
+    else if(f.type.startsWith('audio/')){document.getElementById('mSnd').value=url;}
+    renderMediaPreview();
+    toast('File attached! Save the passage to keep it.');
+  };
+  reader.readAsDataURL(f);
+}
+function renderMediaPreview(){
+  const pv=document.getElementById('mediaPreview');if(!pv)return;
+  if(!isPro){pv.innerHTML='';return;}
+  const m=mediaFromForm();
+  if(!m.img&&!m.vid&&!m.snd){pv.innerHTML='';return;}
+  const fakeP={text:'',media:m};
+  pv.innerHTML=`<div style="margin-top:8px"><div style="font-size:.8em;color:#6b4c3b;margin-bottom:4px">Preview:</div>${renderMediaHTML(fakeP)}</div>`;
+}
+function proGateMedia(kind){
+  if(isPro)return;
+  showProPage('media');
+}
+
+
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1400);
+}
+
+function autosave(){
+  if(saveTimer)clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>{
+    if(curPid){savePassageSilent();renderList();}
+  },400);
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    // Close gracefully topmost open overlay, then nuclear fallback
+    const ag=document.getElementById('agegate');
+    if(ag.classList.contains('open')){
+      // Allow ESC to close birthday-edit mode (Cancel) and ID-check; not first-run birthday prompt
+      if(ag._mode==='birthday-edit'||ag._mode==='idcheck'||!ag._mode){closeAgeGate(true);return;}
+      if(ag._mode==='birthday')return; // first-run, don't close
+    }
+    const rv=document.getElementById('readview');if(rv.classList.contains('open')){closeRead();return;}
+    const pw=document.getElementById('pubw');if(pw.classList.contains('open')){closePub();return;}
+    const ov=document.getElementById('overlay');if(ov.classList.contains('open')){closePlayer();return;}
+    killAllOverlays();
+  }
+  // Ctrl/Cmd+Enter in Build: if Continue/empty normal passage → next scene; else quick publish
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
+    const cyoaTab=document.getElementById('tab-cyoa');
+    if(cyoaTab&&cyoaTab.classList.contains('active')&&curPid){
+      e.preventDefault();
+      const p=cyoa.passages[curPid];
+      if(!p || p.type==='continue' || p.type==='death' || p.type==='victory' || !p.choices.length){
+        addNextScene();
+      }else{
+        startPublish(true);
+      }
+    }
+  }
+});
+
+// ====== PERSISTENCE ======
+function save(){
+  try{localStorage.setItem(LS_CYOA,JSON.stringify(cyoa));}catch(e){}
+  try{if(curPid)localStorage.setItem(LS_CURPID,curPid);else localStorage.removeItem(LS_CURPID);}catch(e){}
+}
+function seedStarter(){
+  const sid='p_start',wid='p_well',tid='p_tower',
+        fd='p_forest_deep',fe='p_forest_end',
+        tr='p_tower_roof',tb='p_tower_basement',
+        we='p_well_depths';
+  cyoa.passages={
+    [sid]:{id:sid,title:'start',text:'You stand at the edge of a dark forest. A narrow path leads into the trees. To your left, an old stone well half-hidden in moss. To your right, a crumbling tower rises above the treetops.\n\nThe wind whispers your name.',type:'normal',choices:[
+      {letter:'A',text:'Follow the path into the forest',target:'forest path',targetType:'passage'},
+      {letter:'B',text:'Examine the old well',target:'the well',targetType:'passage'},
+      {letter:'C',text:'Climb the crumbling tower',target:'the tower',targetType:'passage'}
+    ]},
+    [fd]:{id:fd,title:'forest path',text:'The path narrows as the trees close overhead. Twigs snap under your boots. A glowing butterfly drifts ahead, pausing as if waiting for you to follow.\n\nBehind you, a branch cracks.',type:'normal',choices:[
+      {letter:'A',text:'Chase the butterfly deeper in',target:'clearing',targetType:'passage'},
+      {letter:'B',text:'Run back the way you came',target:'start',targetType:'passage'},
+      {letter:'C',text:'Hide behind a tree and listen',target:'forest ending',targetType:'passage'}
+    ]},
+    [fe]:{id:fe,title:'forest ending',text:'You press your back against rough bark and hold your breath. Footsteps approach — heavy, slow — then stop right beside you.\n\nA warm voice says, "Took you long enough. We have been waiting."\n\nA hand extends into view, palm up, offering a small bronze key. The key glows the same blue as the butterfly.',type:'normal',choices:[
+      {letter:'A',text:'Take the key',target:'victory',targetType:'victory'},
+      {letter:'B',text:'Refuse and step into the open',target:'death',targetType:'death'}
+    ]},
+    [wid]:{id:wid,title:'the well',text:"You lean over the well's mossy rim. Far below, something shimmers — not water, something silver. A rusted iron ladder descends into the dark.",type:'normal',choices:[
+      {letter:'A',text:'Climb down the ladder',target:'well depths',targetType:'passage'},
+      {letter:'B',text:'Drop a stone and listen',target:'tower roof',targetType:'passage'},
+      {letter:'C',text:'Return to the edge of the trees',target:'start',targetType:'passage'}
+    ]},
+    [we]:{id:we,title:'well depths',text:'The ladder ends in a small circular chamber. The silver glow comes from a pool in the center. At its bottom, a sword — or is it a crown? — rests half-buried in silt.\n\nAs you reach toward the water, your reflection smiles back on its own.',type:'normal',choices:[
+      {letter:'A',text:'Plunge your hand in',target:'death',targetType:'death'},
+      {letter:'B',text:'Speak to the reflection',target:'victory',targetType:'victory'}
+    ]},
+    [tid]:{id:tid,title:'the tower',text:'The tower door hangs half off its hinges. Inside, a spiral stair climbs into darkness and a second stair descends into a cold draft that smells of rain.',type:'normal',choices:[
+      {letter:'A',text:'Climb to the roof',target:'tower roof',targetType:'passage'},
+      {letter:'B',text:'Descend to the basement',target:'basement',targetType:'passage'},
+      {letter:'C',text:'Back outside',target:'start',targetType:'passage'}
+    ]},
+    [tr]:{id:tr,title:'tower roof',text:'The roof is open to the sky. A telescope on a brass tripod points at the sun — and yet, when you look through it, you see stars.\n\nA leather journal lies open on the parapet.',type:'normal',choices:[
+      {letter:'A',text:'Read the journal',target:'victory',targetType:'victory'},
+      {letter:'B',text:'Turn the telescope toward the forest',target:'clearing',targetType:'passage'},
+      {letter:'C',text:'Climb back down',target:'the tower',targetType:'passage'}
+    ]},
+    [tb]:{id:tb,title:'basement',text:'The basement is a single vaulted room lined with shelves of glass jars. Each jar holds a memory, glowing softly: your first birthday, a rainy Tuesday you forgot, your first loss.\n\nOne jar on the center pedestal is empty, labeled with your name.',type:'normal',choices:[
+      {letter:'A',text:'Open the empty jar',target:'death',targetType:'death'},
+      {letter:'B',text:'Take the jar and leave',target:'victory',targetType:'victory'},
+      {letter:'C',text:'Back up the stairs',target:'the tower',targetType:'passage'}
+    ]},
+    'p_clearing':{id:'p_clearing',title:'clearing',text:'You step into a small circular clearing. The butterfly lands on a stone at its center — and the stone has your name carved into it, fresh, as if cut today.',type:'normal',choices:[
+      {letter:'A',text:'Touch the stone',target:'forest ending',targetType:'passage'},
+      {letter:'B',text:'Back away slowly',target:'forest path',targetType:'passage'}
+    ]},
+    'p_victory':{id:'p_victory',title:'victory',text:'You did it. The key turns, the door opens, the light lifts, the journal reveals its secret — whatever it was, you made the right choice at the last turn.\n\nThe forest exhales. Somewhere, a butterfly lands on your shoulder.\n\n— The End —',type:'victory',choices:[]},
+    'p_death':{id:'p_death',title:'death',text:'The dark reaches first. The reflection pulls. The jar opens and the memory rushes out.\n\nIt was a good try. Better than most.\n\n— The End —',type:'death',choices:[]}
+  };
+}
+
+function blankStory(){
+  const id='p_start';
+  cyoa.passages={};
+  cyoa.passages[id]={id,title:'start',text:'',type:'normal',choices:[]};
+}
+function load(){
+  try{
+    const s=localStorage.getItem(LS_CYOA);
+    if(s){
+      cyoa=JSON.parse(s);
+      if(cyoa.passages && Object.keys(cyoa.passages).length>0){
+        for(const id in cyoa.passages){
+          const p=cyoa.passages[id];
+          if(!p.choices)p.choices=[];
+          if(!p.type)p.type='normal';
+        }
+        // Restore last-selected passage id
+        try{const cid=localStorage.getItem(LS_CURPID);if(cid&&cyoa.passages[cid])curPid=cid;}catch(e){}
+        return;
+      }
+    }
+  }catch(e){}
+  blankStory();
+  save();
+}
+
+function newStory(blank){
+  const n=Object.keys(cyoa.passages||{});
+  // If already blank, just reset without asking
+  const isFresh=n.length<=1 && n.length>0 && cyoa.passages[n[0]] && (!cyoa.passages[n[0]].text) && cyoa.passages[n[0]].choices.length===0 && !cyoa.passages[n[0]].media;
+  if(!blank && n.length>0 && !isFresh){
+    if(!confirm('Start a new story? Your current draft ('+n.length+' passages) will be erased.\n\n(Publish first from the ⚡ button if you want to keep a copy.)'))return;
+  }
+  // Wipe ALL draft state
+  cyoa={passages:{}};curPid=null;prevPid=null;
+  document.getElementById('storyTitle').value='';saveTitle();
+  try{localStorage.removeItem(LS_CYOA);localStorage.removeItem(LS_FREE);localStorage.removeItem(LS_TITLE);localStorage.removeItem(LS_CURPID);}catch(e){}
+  killAllOverlays();
+  try{closeModal();closePub();closePlayer();closeRead();}catch(e){}
+  // Wipe DOM completely before reseeding
+  document.getElementById('ptitle').value='';
+  document.getElementById('ptext').value='';
+  document.getElementById('choices').innerHTML='';
+  document.getElementById('crumb').style.display='none';
+  document.getElementById('mediaPreview').innerHTML='';
+  document.getElementById('plist').innerHTML='';
+  document.getElementById('noSel').style.display='block';
+  document.getElementById('editForm').style.display='none';
+  // Start with ONE blank passage (not the template)
+  blankStory();
+  curPid='p_start';
+  save();
+  switchTab('cyoa');
+  renderList();renderEditor();
+  // Focus the textarea so user can start writing immediately
+  setTimeout(()=>{
+    const t=document.getElementById('ptext');if(t)t.focus();
+    const title=document.getElementById('storyTitle');
+  },50);
+  toast('Fresh blank story — start writing!');
+}
+function saveTitle(){try{localStorage.setItem(LS_TITLE,document.getElementById('storyTitle').value);}catch(e){}}
+function loadTitle(){try{const t=localStorage.getItem(LS_TITLE);if(t)document.getElementById('storyTitle').value=t;}catch(e){}}
+
+// ====== TABS ======
+function switchTab(id){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===id));
+  document.querySelectorAll('.tab').forEach(p=>p.classList.toggle('active',p.id==='tab-'+id));
+  if(id==='lib'){renderLib();updateLibCount();}
+}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>switchTab(b.dataset.tab)));
+
+document.getElementById('storyTitle').addEventListener('input',saveTitle);
+
+// ====== PASSAGE OPS ======
+function findPidByLabel(label){
+  if(!label)return null;
+  const s=slug(label);
+  if(cyoa.passages[s])return s; // in case IDs are slugs (legacy-safe)
+  for(const id in cyoa.passages){
+    if(slug(cyoa.passages[id].title)===s)return id;
+  }
+  return null;
+}
+
+function newPassage(){
+  const id=uid();
+  // default title: avoid collisions
+  let n=1,t='new passage';
+  const titles=new Set(Object.values(cyoa.passages).map(p=>slug(p.title)));
+  while(titles.has(slug(t)))t='new passage '+(++n);
+  cyoa.passages[id]={id,title:t,text:'',type:'normal',choices:[]};
+  curPid=id;save();renderList();renderEditor();toast('New passage added');
+}
+
+function deletePassage(){
+  if(!curPid)return;
+  if(!confirm('Delete this passage? Any choices pointing to it will become broken links.'))return;
+  delete cyoa.passages[curPid];curPid=null;save();renderList();renderEditor();toast('Passage deleted');
+}
+function deleteStory(){
+  const n=Object.keys(cyoa.passages||{}).length;
+  if(n===0){toast('Nothing to delete');return;}
+  if(!confirm('Delete this ENTIRE story? All '+n+' passages will be erased.\n\nThis cannot be undone.'))return;
+  if(!confirm('Really delete everything? Press OK to confirm.'))return;
+  newStory(true);
+  toast('Story deleted — blank start ready');
+}
+
+function selectPassage(id){curPid=id;prevPid=null;renderList();renderEditor();}
+function setType(type){
+  if(!curPid)return;
+  const p=cyoa.passages[curPid];
+  // Save whatever's in the form first (title/text/media)
+  p.title=(document.getElementById('ptitle')&&document.getElementById('ptitle').value.trim())||p.title||'untitled';
+  p.text=(document.getElementById('ptext')&&document.getElementById('ptext').value)||p.text||'';
+  p.type=type;
+  if(type!=='normal')p.choices=[];
+  renderEditor();
+  // If switching to Continue without a target, create next scene AFTER the editor re-renders
+  if(type==='continue' && (!p.contTarget || !findPidByLabel(p.contTarget))){
+    setTimeout(()=>addNextScene(),50);
+  }
+}
+
+function validateContTarget(){
+  const inp=document.getElementById('contTarget');if(!inp)return;
+  const v=inp.value.trim();
+  inp.classList.remove('good','bad');
+  const pid=v?findPidByLabel(v):null;
+  if(v&&pid)inp.classList.add('good');
+  else if(v)inp.classList.add('bad');
+  const cb=document.getElementById('cnewCont');
+  if(cb){
+    if(pid)cb.style.display='none';
+    else if(v){cb.style.display='inline-block';cb.textContent='✨ Create "'+v+'"';}
+    else cb.style.display='none';
+  }
+}
+function saveContTarget(){
+  if(!curPid)return;
+  const inp=document.getElementById('contTarget');if(!inp)return;
+  cyoa.passages[curPid].contTarget=inp.value.trim();
+  autosave();
+  validateContTarget();
+}
+function createContTarget(){
+  if(!curPid)return;
+  savePassageSilent();
+  const inp=document.getElementById('contTarget');
+  let label=inp?inp.value.trim():'';
+  if(!label)label='the next scene';
+  if(findPidByLabel(label)){if(inp){inp.classList.remove('bad');inp.classList.add('good');}validateContTarget();cyoa.passages[curPid].contTarget=label;save();return;}
+  const id=uid();
+  cyoa.passages[id]={id,title:label,text:'',type:'continue',choices:[],contTarget:''};
+  cyoa.passages[curPid].contTarget=label;
+  save();prevPid=curPid;curPid=id;renderList();renderEditor();
+  setTimeout(()=>{const t=document.getElementById('ptext');if(t)t.focus();},50);
+  toast('Created: '+label+' — keep writing!');
+}
+function addNextScene(){
+  // Smart: name next scene automatically ("scene 2", "scene 3", ...) if nothing typed
+  if(!curPid)return;
+  savePassageSilent();
+  const p=cyoa.passages[curPid];
+  if(p.type!=='continue'){
+    // convert to continue
+    p.type='continue';delete p.contTarget;p.choices=[];
+  }
+  // generate label
+  const titles=new Set(Object.values(cyoa.passages).map(x=>slug(x.title)));
+  let n=1,label='the next scene';
+  while(titles.has(slug(label))){label='scene '+(++n);}
+  const id=uid();
+  cyoa.passages[id]={id,title:label,text:'',type:'continue',choices:[],contTarget:''};
+  p.contTarget=label;
+  save();prevPid=curPid;curPid=id;renderList();renderEditor();
+  setTimeout(()=>{
+    const t=document.getElementById('ptitle');if(t){t.focus();t.select();}
+  },50);
+  toast('Next scene added');
+}
+function clearContTarget(){
+  if(!curPid)return;
+  delete cyoa.passages[curPid].contTarget;
+  save();renderEditor();
+}
+
+function addChoice(){
+  if(!curPid)return;
+  const p=cyoa.passages[curPid];
+  if(p.type!=='normal')return;
+  if(p.choices.length>=10)return toast('Max 10 choices (A-J)');
+  const letters='ABCDEFGHIJ';
+  p.choices.push({letter:letters[p.choices.length],text:'',target:'',targetType:'passage'});
+  const newIdx=p.choices.length-1;
+  renderEditor();
+  // Focus the new choice text
+  setTimeout(()=>{
+    const el=document.getElementById('ctext_'+newIdx);
+    if(el)el.focus();
+  },30);
+}
+
+function removeChoice(i){
+  if(!curPid)return;
+  cyoa.passages[curPid].choices.splice(i,1);
+  const letters='ABCDEFGHIJ';
+  cyoa.passages[curPid].choices.forEach((c,idx)=>c.letter=letters[idx]);
+  renderEditor();
+}
+
+function updateChoice(i){
+  if(!curPid)return;
+  const p=cyoa.passages[curPid];
+  const c=p.choices[i];
+  c.text=document.getElementById('ctext_'+i).value;
+  c.targetType=document.getElementById('ctype_'+i).value;
+  if(c.targetType!=='passage')c.target='';
+  else c.target=document.getElementById('ctarg_'+i).value;
+  renderEditor();
+}
+
+function validateTarget(i){
+  const inp=document.getElementById('ctarg_'+i);
+  if(!inp)return;
+  const v=inp.value.trim();
+  inp.classList.remove('good','bad');
+  const pid=v?findPidByLabel(v):null;
+  if(v&&pid)inp.classList.add('good');
+  else if(v)inp.classList.add('bad');
+  const cb=document.getElementById('cnew_'+i);
+  const ctextEl=document.getElementById('ctext_'+i);
+  const hasChoiceText=ctextEl&&ctextEl.value.trim();
+  if(cb){
+    if(pid){cb.style.display='none';}
+    else if(v){cb.style.display='inline-block';cb.textContent='✨ Create "'+v+'"';}
+    else if(hasChoiceText){cb.style.display='inline-block';cb.textContent='✨ New passage →';}
+    else{cb.style.display='none';}
+  }
+}
+
+function createTargetFromChoice(i){
+  if(!curPid)return;
+  savePassageSilent();
+  const inp=document.getElementById('ctarg_'+i);
+  let label=inp.value.trim();
+  // If label is empty, auto-generate from the choice text!
+  if(!label){
+    const ctext=document.getElementById('ctext_'+i).value.trim();
+    if(ctext){
+      // Derive a short label from choice text: first 3-4 meaningful words
+      label=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase();
+      if(!label)label='the next path';
+    }else{
+      label='the next path';
+    }
+    inp.value=label;
+  }
+  if(findPidByLabel(label)){inp.classList.remove('bad');inp.classList.add('good');validateTarget(i);return;}
+  const id=uid();
+  cyoa.passages[id]={id,title:label,text:'',type:'normal',choices:[]};
+  cyoa.passages[curPid].choices[i].target=label;
+  save();
+  prevPid=curPid;
+  curPid=id;
+  renderList();renderEditor();
+  setTimeout(()=>{const t=document.getElementById('ptext');if(t)t.focus();},50);
+  toast('Created: '+label);
+}
+
+function goBack(){
+  if(prevPid&&cyoa.passages[prevPid]){const to=prevPid;prevPid=curPid;curPid=to;renderList();renderEditor();}
+}
+
+function savePassageSilent(){
+  if(!curPid)return;
+  const p=cyoa.passages[curPid];
+  p.title=document.getElementById('ptitle').value.trim()||'untitled';
+  p.text=document.getElementById('ptext').value;
+  // media (only stored if pro; fields only render when pro)
+  if(isPro&&document.getElementById('mImg')){
+    const m=mediaFromForm();
+    if(Object.keys(m).length)p.media=m;
+    else delete p.media;
+  }
+  // continue-type passage stores single next target
+  if(p.type==='continue'&&document.getElementById('contTarget')){
+    p.contTarget=document.getElementById('contTarget').value.trim();
+    p.choices=[];
+    save();return;
+  }else if(p.type!=='normal'){
+    delete p.contTarget;p.choices=[];save();return;
+  }
+  delete p.contTarget;
+  p.choices=[];
+  const letters='ABCDEFGHIJ';
+  document.querySelectorAll('.choice').forEach((el,i)=>{
+    if(i>=10)return;
+    const text=document.getElementById('ctext_'+i).value;
+    const type=document.getElementById('ctype_'+i).value;
+    const tg=type==='passage'?document.getElementById('ctarg_'+i).value.trim():'';
+    p.choices.push({letter:letters[i],text,target:tg,targetType:type});
+  });
+  save();
+}
+
+function savePassage(){
+  if(!curPid)return;
+  savePassageSilent();
+  renderList();renderEditor();toast('Saved!');
+}
+
+// ====== RENDER ======
+function renderList(){
+  const list=document.getElementById('plist');
+  const ids=Object.keys(cyoa.passages);
+  // sort: start first, then alpha
+  ids.sort((a,b)=>{
+    const pa=cyoa.passages[a],pb=cyoa.passages[b];
+    const sa=slug(pa.title)==='start'?0:1,sb=slug(pb.title)==='start'?0:1;
+    if(sa!==sb)return sa-sb;
+    return pa.title.localeCompare(pb.title);
+  });
+  let choices=0,deaths=0,vics=0;
+  let html='';
+  ids.forEach(id=>{
+    const p=cyoa.passages[id];
+    choices+=p.choices.length;
+    if(p.type==='death')deaths++;
+    if(p.type==='victory')vics++;
+    let badge='';
+    if(slug(p.title)==='start')badge='<span class="pb pb-start">START</span>';
+    else if(p.type==='death')badge='<span class="pb pb-death">💀</span>';
+    else if(p.type==='victory')badge='<span class="pb pb-victory">🏆</span>';
+    else if(p.type==='continue')badge='<span class="pb" style="background:#b8860b;color:#2c1810">💬</span>';
+    const cls=p.type==='death'?'death':p.type==='victory'?'victory':p.type==='continue'?'continue':'';
+    const act=id===curPid?' active':'';
+    html+=`<div class="pitem ${cls}${act}" onclick="selectPassage('${id}')"><span class="pt">${esc(p.title)}</span>${badge}</div>`;
+  });
+  list.innerHTML=html||'<div class="empty" style="padding:20px 10px">No passages yet.</div>';
+  const stat=document.getElementById('stat');
+  if(stat)stat.textContent=`${ids.length} passage${ids.length!==1?'s':''} · ${choices} choice${choices!==1?'s':''} · ${deaths} death${deaths!==1?'s':''} · ${vics} ending${vics!==1?'s':''} · autosaves as you type`;
+  // populate datalist for autocomplete
+  const dl=document.getElementById('passages-dl');
+  if(dl)dl.innerHTML=ids.map(id=>`<option value="${esc(cyoa.passages[id].title)}">`).join('');
+}
+
+function addChoiceAndCreate(){
+  if(!curPid)return;
+  savePassageSilent();
+  const p=cyoa.passages[curPid];
+  if(p.type!=='normal')return;
+  if(p.choices.length>=10)return toast('Max 10 choices (A-J)');
+  // Smart default name
+  let n=1,d='';
+  const titles=new Set(Object.values(cyoa.passages).map(x=>slug(x.title)));
+  const tries=['the dark path','the old door','the cave','the forest','the tower','the bridge','the river','the stairs','the chamber','the gate'];
+  for(const t of tries){if(!titles.has(slug(t))){d=t;break;}}
+  if(!d){while(titles.has(slug('path '+n)))n++;d='path '+n;}
+  const letters='ABCDEFGHIJ';
+  const id=uid();
+  cyoa.passages[id]={id,title:d,text:'',type:'normal',choices:[]};
+  const newIdx=p.choices.length;
+  p.choices.push({letter:letters[newIdx],text:'',target:d,targetType:'passage'});
+  prevPid=curPid;
+  curPid=id;
+  save();renderList();renderEditor();
+  // Focus TITLE first so they can rename it easily, then they'll write text
+  setTimeout(()=>{
+    const titleIn=document.getElementById('ptitle');
+    if(titleIn){titleIn.focus();titleIn.select();}
+  },50);
+  toast('New passage: type its label, then write below.');
+}
+
+// Auto-title helper: suggest title from first line of text when title is empty-ish
+function suggestTitleFromText(){
+  if(!curPid)return;
+  const title=document.getElementById('ptitle');
+  const text=document.getElementById('ptext');
+  if(!title||!text)return;
+  // Only auto-suggest if title is a default name or empty
+  const t=title.value.trim().toLowerCase();
+  const defaults=['start','untitled','new passage','the next path','path 1','path 2','path 3'];
+  if(defaults.includes(t)||t.startsWith('new passage ')){
+    const firstLine=text.value.trim().split(/\n/)[0];
+    if(firstLine&&firstLine.length>3){
+      // take up to 5 words
+      const name=firstLine.replace(/[^a-zA-Z0-9\s'.]/g,'').split(/\s+/).slice(0,5).join(' ');
+      if(name.length>3)title.value=name;
+    }
+  }
+}
+
+function renderEditor(){
+  const noSel=document.getElementById('noSel');
+  const form=document.getElementById('editForm');
+  if(!curPid||!cyoa.passages[curPid]){noSel.style.display='block';form.style.display='none';return;}
+  noSel.style.display='none';form.style.display='block';
+  const p=cyoa.passages[curPid];
+  document.getElementById('ptitle').value=p.title;
+  document.getElementById('ptext').value=p.text;
+  document.querySelectorAll('.type-row button').forEach(b=>b.classList.toggle('active',b.dataset.type===p.type));
+  const addBtn=document.getElementById('addChoiceBtn');
+  addBtn.style.display=p.type==='normal'?'block':'none';
+  document.getElementById('choiceCount').textContent=p.type==='normal'?`(${p.choices.length}/10)`:(p.type==='continue'?'(auto-advance)':'');
+
+  // Breadcrumb
+  const crumb=document.getElementById('crumb');
+  crumb.style.display=prevPid&&cyoa.passages[prevPid]?'block':'none';
+
+  // START badge
+  const pb=document.getElementById('pbadge');
+  if(slug(p.title)==='start'){pb.style.display='inline-block';pb.textContent='START';pb.className='pb pb-start';}
+  else if(p.type==='death'){pb.style.display='inline-block';pb.textContent='💀 DEATH';pb.className='pb pb-death';}
+  else if(p.type==='victory'){pb.style.display='inline-block';pb.textContent='🏆 VICTORY';pb.className='pb pb-victory';}
+  else if(p.type==='continue'){pb.style.display='inline-block';pb.textContent='💬 CONTINUE';pb.className='pb pb-start';}
+  else pb.style.display='none';
+
+  const ch=document.getElementById('choices');
+  let h='';
+  if(p.type==='death'){
+    h=`<div class="empty" style="padding:20px">💀 This is a DEATH ending — no choices needed. Just describe how the reader dies.</div>`;
+  }else if(p.type==='victory'){
+    h=`<div class="empty" style="padding:20px">🏆 This is a VICTORY ending — no choices needed. Write the ending!</div>`;
+  }else if(p.type==='continue'){
+    const nextTarget=p.contTarget||'';
+    const tgtExists=nextTarget?!!findPidByLabel(nextTarget):false;
+    const tgtBadge=tgtExists?'good':(nextTarget?'bad':'');
+    h=`<div style="padding:14px;background:linear-gradient(135deg,#fff8e7,#fef3c7);border:2px solid #b8860b;border-radius:10px;margin-bottom:8px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:1.4em">💬</span>
+          <div style="flex:1;min-width:200px">
+            <b>Dialog / Narration</b>
+            <div style="font-size:.82em;color:#6b4c3b">Write the scene. Reader taps <b>Continue →</b> to advance. Add choices when you want a branch.</div>
+          </div>
+          <button class="btn btn-gold" onclick="addNextScene()" style="padding:8px 14px">➕ Next scene</button>
+          <button class="btn btn-sec" onclick="setType('normal');setTimeout(()=>{document.getElementById('addChoiceBtn')&&document.getElementById('addChoiceBtn').focus();},50)" style="padding:6px 10px;font-size:.85em">💬 Add choice/branch</button>
+        </div>
+      </div>
+      ${!tgtExists?`<div style="padding:10px;background:#fef2f2;border:2px dashed #dc2626;border-radius:8px;margin:6px 0;text-align:center">
+        <div style="font-size:1.2em;margin-bottom:4px">🔗 Next scene required</div>
+        <div style="font-size:.85em;color:#991b1b;margin-bottom:8px">Every 💬 Continue passage must link to another passage. Create the next scene now:</div>
+        <button class="btn btn-gold" onclick="addNextScene()" style="background:linear-gradient(135deg,#dc2626,#991b1b)">➕ Create next scene →</button>
+      </div>`:`<div class="choice" style="background:#fff8e7;border-color:#b8860b">
+        <div class="choice-head">
+          <span class="cl" style="background:#b8860b">➡</span>
+          <input type="text" class="tgin ${tgtBadge}" id="contTarget" list="passages-dl" placeholder="Next passage..." value="${esc(nextTarget)}" oninput="validateContTarget()" onchange="saveContTarget()" style="flex:1">
+          <button class="mkbtn ${tgtExists?'exists':''}" id="cnewCont" onclick="createContTarget()" style="${(nextTarget&&!tgtExists)?'':'display:none'}">✨ Create "${esc(nextTarget||'')}"</button>
+        </div>
+        <div style="font-size:.78em;color:#6b4c3b;margin-top:4px">➡ Continue button leads here. Click ➕ Next scene to make a new one.</div>
+      </div>`}`;
+  }else{
+    p.choices.forEach((c,i)=>{
+      const showTgt=c.targetType==='passage'?'show':'';
+      const tgtExists=c.target?!!findPidByLabel(c.target):false;
+      const tgtBadge=tgtExists?'good':(c.target?'bad':'');
+      h+=`<div class="choice">
+        <div class="choice-head">
+          <span class="cl">${c.letter}</span>
+          <input type="text" id="ctext_${i}" placeholder="Choice text..." value="${esc(c.text)}" oninput="validateTarget(${i})">
+          <select id="ctype_${i}" onchange="updateChoice(${i})">
+            <option value="passage"${c.targetType==='passage'?' selected':''}>➡️ Continue to</option>
+            <option value="death"${c.targetType==='death'?' selected':''}>💀 Death</option>
+            <option value="victory"${c.targetType==='victory'?' selected':''}>🏆 Victory</option>
+          </select>
+          <button class="xbtn" onclick="removeChoice(${i})" title="Remove">✕</button>
+        </div>
+        <div class="trow ${showTgt}">
+          <input type="text" class="tgin ${tgtBadge}" id="ctarg_${i}" list="passages-dl" placeholder="Type a passage label (new or existing)..." value="${esc(c.target)}" oninput="validateTarget(${i})" onchange="updateChoice(${i})">
+          <button class="mkbtn ${tgtExists?'exists':''}" id="cnew_${i}" onclick="createTargetFromChoice(${i})" style="${(c.target&&!tgtExists)||(!c.target&&c.text)?'':'display:none'}">✨ ${c.target?'Create "'+esc(c.target)+'"':(c.text?'Create from choice':'Create new')}</button>
+        </div>
+      </div>`;
+    });
+  }
+  ch.innerHTML=h;
+  renderList();
+
+  // Wire autosave on all inputs in the editor
+  const inputs=form.querySelectorAll('input,textarea,select');
+  inputs.forEach(el=>{
+    if(el._asv)return;
+    el._asv=true;
+    const ev=(el.tagName==='SELECT'||el.type==='select-one')?'change':'input';
+    el.addEventListener(ev,()=>{
+      // sync to state live (without re-rendering) so autosave picks up
+      if(!curPid)return;
+      const pp=cyoa.passages[curPid];
+      if(el.id==='ptitle')pp.title=el.value.trim()||'untitled';
+      else if(el.id==='ptext')pp.text=el.value;
+      else if(el.id && el.id.startsWith('ctext_')){
+        const i=+el.id.split('_')[1];
+        if(pp.choices[i])pp.choices[i].text=el.value;
+      }else if(el.id && el.id.startsWith('ctarg_')){
+        const i=+el.id.split('_')[1];
+        if(pp.choices[i])pp.choices[i].target=el.value.trim();
+      }
+      autosave();
+    });
+    // Enter key in target input = create
+    if(el.id && el.id.startsWith('ctarg_')){
+      el.addEventListener('keydown',e=>{
+        if(e.key==='Enter'){
+          e.preventDefault();
+          const i=+el.id.split('_')[1];
+          createTargetFromChoice(i);
+        }
+      });
+    }
+    if(el.id==='contTarget'){
+      el.addEventListener('keydown',e=>{
+        if(e.key==='Enter'){e.preventDefault();createContTarget();}
+      });
+    }
+    // Ctrl+Enter in ptext = save & add next scene (when continue)
+    if(el.id==='ptext'){
+      el.addEventListener('blur',suggestTitleFromText);
+      el.addEventListener('keydown',e=>{
+        if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){
+          e.preventDefault();
+          savePassageSilent();
+          if(cyoa.passages[curPid].type==='continue' || !cyoa.passages[curPid].choices.length){
+            addNextScene();
+          }else{
+            toast('Saved');
+          }
+        }
+      });
+    }
+  });
+  renderMediaEditor();
+}
+
+// ====== PLAYER ======
+function closePlayer(){closeOverlay('overlay');}
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closePlayer();});
+
+let _playVisited=null, _playPrev=null;
+function validateStory(){
+  const problems=[];
+  for(const id in cyoa.passages){
+    const p=cyoa.passages[id];
+    if(p.type==='continue'){
+      if(!p.contTarget||!findPidByLabel(p.contTarget)){
+        problems.push('"'+p.title+'" is a 💬 Continue passage but has no next scene linked.');
+      }
+    }
+    if(p.type==='normal'){
+      for(const c of (p.choices||[])){
+        if(c.targetType==='passage'&&c.target&&!findPidByLabel(c.target)){
+          problems.push('Choice "'+(c.text||'?')+'" in "'+p.title+'" points to "'+c.target+'" which doesn\'t exist yet.');
+        }
+      }
+    }
+  }
+  return problems;
+}
+function playStory(){
+  const startId=findPidByLabel('start');
+  if(!startId){toast('You need a passage titled "start"');return;}
+  const probs=validateStory();
+  if(probs.length>0){
+    showModal('⚠ Unfinished paths',
+      '<p style="margin-bottom:10px">Your story has unfinished links:</p><ul style="padding-left:20px;color:#991b1b;line-height:1.7">'+probs.slice(0,6).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><p style="margin-top:12px;font-size:.9em;color:#6b4c3b">Create the missing passages (click the ✨ button next to the field) before playing.</p><div style="text-align:right;margin-top:12px"><button class="btn btn-sec" onclick="closeModal()">Okay</button></div>');
+    return;
+  }
+  openOverlay('overlay');
+  _playVisited=new Set();_playPrev=null;
+  showPassage(startId);
+}
+
+function pickContinueIdx(p,fromPid){
+  // pick best forward choice: prefer passage-typed with target, avoid returning to previous if possible, avoid loops
+  const opts=p.choices.map((c,i)=>({c,i})).filter(x=>x.c.targetType==='passage'&&x.c.target);
+  if(opts.length===0)return -1;
+  const labeled=opts.map(o=>({...o,tgtPid:findPidByLabel(o.c.target)}));
+  // prefer targets that exist and aren't back-to-previous
+  let best=labeled.find(o=>o.tgtPid&&o.tgtPid!==fromPid&&!_playVisited.has(o.tgtPid));
+  if(best)return best.i;
+  best=labeled.find(o=>o.tgtPid&&o.tgtPid!==fromPid);
+  if(best)return best.i;
+  return opts[0].i;
+}
+
+function showPassage(pid){
+  if(_playVisited)_playVisited.add(pid);
+  const p=cyoa.passages[pid];
+  const box=document.getElementById('player');
+  if(!p){
+    box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend"><h2 style="color:#8b2500;border:none">⚠️ Missing Passage</h2><p style="text-align:center">That passage doesn't exist yet — back to the builder!</p><button class="btn" onclick="closePlayer()">✍️ Back</button></div>`;
+    return;
+  }
+  if(p.type==='death'){
+    box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend death"><h2>💀 You have died...</h2><p>${esc(p.text||'Your journey ends here.')}</p><button class="btn btn-red" onclick="playStory()">↻ Try Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back to Builder</button></div>`;
+    return;
+  }
+  if(p.type==='victory'){
+    box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(p.text||'You win!')}</p><button class="btn btn-green" onclick="playStory()">↻ Play Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back to Builder</button></div>`;
+    return;
+  }
+  let html=`<button class="player-x" onclick="closePlayer()">✕</button>${renderMediaHTML(p)}<div class="ptxt">${esc(p.text)}</div>`;
+  if(p.type==='continue'){
+    // Single Continue button → advances to p.contTarget
+    const tgt=p.contTarget?findPidByLabel(p.contTarget):null;
+    if(!tgt){
+      html+=`<div class="pend"><p style="color:#991b1b;text-align:center">— The story ends here —</p><button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+    }else{
+      html+=`<button class="pchoice cont" onclick="gotoContinue(${JSON.stringify(pid)},${JSON.stringify(tgt)})"><span class="l">➡</span>Continue →</button>`;
+    }
+  }else if(p.choices.length===0){
+    html+=`<div class="pend"><p style="color:#991b1b;text-align:center">— The story ends here (no choices) —</p><button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+  }else{
+    p.choices.forEach((c,i)=>{
+      html+=`<button class="pchoice" onclick="choose(${JSON.stringify(pid)},${i})"><span class="l">${c.letter}</span>${esc(c.text||'Continue...')}</button>`;
+    });
+    const contIdx=pickContinueIdx(p,_playPrev);
+    if(contIdx>=0){
+      html+=`<button class="pchoice" style="border-left-color:#b8860b;background:#fff8e7;margin-top:12px" onclick="choose(${JSON.stringify(pid)},${contIdx})"><span class="l" style="background:#b8860b">➡</span><em>Continue to next page</em></button>`;
+    }
+  }
+  box.innerHTML=html;
+  box.scrollTop=0;
+  window.scrollTo(0,0);
+}
+
+function gotoContinue(fromPid,tgtPid){
+  _playPrev=fromPid;
+  showPassage(tgtPid);
+}
+function choose(pid,i){
+  const p=cyoa.passages[pid];
+  const c=p.choices[i];
+  const prevBefore=_playPrev;
+  _playPrev=pid;
+  if(c.targetType==='death'){
+    // find any death passage, or instant death
+    const deathIds=Object.values(cyoa.passages).filter(x=>x.type==='death');
+    if(deathIds.length>0){
+      // pick death matching if target label, else random
+      const match=c.target?deathIds.find(d=>slug(d.title)===slug(c.target)):null;
+      showPassage(match?match.id:deathIds[0].id);
+    }else{
+      const box=document.getElementById('player');
+      box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend death"><h2>💀 You have died.</h2><p>Your journey ends here.</p><button class="btn btn-red" onclick="playStory()">↻ Try Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+    }
+    return;
+  }
+  if(c.targetType==='victory'){
+    const vicIds=Object.values(cyoa.passages).filter(x=>x.type==='victory');
+    const match=c.target?vicIds.find(d=>slug(d.title)===slug(c.target)):null;
+    if(match){showPassage(match.id);return;}
+    if(vicIds.length>0){showPassage(vicIds[0].id);return;}
+    const box=document.getElementById('player');
+    box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend victory"><h2>🏆 The End</h2><p>You've reached the end of this path.</p><button class="btn btn-green" onclick="playStory()">↻ Play Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+    return;
+  }
+  // passage
+  const tgt=findPidByLabel(c.target);
+  if(!tgt){
+    const box=document.getElementById('player');
+    box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend"><h2 style="color:#991b1b;border:none">⚠️ Broken Path</h2><p style="text-align:center">This choice leads to "${esc(c.target)}" which doesn't exist yet.<br><em>Back to the builder to write it!</em></p><button class="btn" onclick="closePlayer()">✍️ Back</button></div>`;
+    return;
+  }
+  showPassage(tgt);
+}
+
+// ====== EXPORT ======
+function exportHTML(){
+  savePassageSilent();
+  const probs=validateStory();
+  if(probs.length>0){
+    showModal('⚠ Fix broken links first',
+      '<p style="margin-bottom:10px">These paths are broken — fix them before exporting:</p><ul style="padding-left:20px;color:#991b1b;line-height:1.7">'+probs.slice(0,8).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><div style="text-align:right;margin-top:12px"><button class="btn btn-sec" onclick="closeModal()">Okay</button></div>');
+    return;
+  }
+  const title=document.getElementById('storyTitle').value||'My Adventure';
+  const passages={};
+  for(const id in cyoa.passages){
+    const p=cyoa.passages[id];
+    passages[slug(p.title)]={title:p.title,text:p.text,type:p.type,media:p.media||null,contTarget:p.type==='continue'&&p.contTarget?slug(p.contTarget):null,choices:p.choices.map(c=>({letter:c.letter,text:c.text,targetType:c.targetType,target:c.targetType==='passage'?slug(c.target):c.target}))};
+  }
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport"content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>body{font-family:Georgia,serif;max-width:640px;margin:40px auto;padding:20px;background:#f4ecd8;color:#2c1810;line-height:1.8}h1{color:#8b2500;border-bottom:2px solid #b8860b;padding-bottom:10px}.t{margin-bottom:20px;white-space:pre-wrap}.c{display:block;background:#fff;border:2px solid #d4c4a8;border-left:5px solid #8b2500;border-radius:8px;padding:12px;margin:8px 0;cursor:pointer;font-family:inherit;font-size:1em;text-align:left;transition:all .15s;width:100%;line-height:1.5}.c:hover{background:#fff8e7;border-color:#8b2500}.cl{display:inline-block;width:26px;height:26px;border-radius:50%;background:#8b2500;color:#fff;text-align:center;line-height:26px;font-weight:700;margin-right:10px}.e{text-align:center;padding:30px}.e.death h2{color:#991b1b}.e.victory h2{color:#15803d}</style></head><body><h1>${esc(title)}</h1><div id="s"></div><script>const P=${JSON.stringify(passages)};function show(k){const p=P[k];const d=document.getElementById('s');if(!p){d.innerHTML='<div class="e"><h2>Path not found</h2></div>';return;}if(p.type==='death'){d.innerHTML='<div class="e death"><h2>💀 You have died.</h2><p style="white-space:pre-wrap;text-align:left">'+(p.text||'Your journey ends here.')+'</p><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Try Again</button></div>';return;}if(p.type==='victory'){d.innerHTML='<div class="e victory"><h2>🏆 Victory!</h2><p style="white-space:pre-wrap;text-align:left">'+(p.text||'You win!')+'</p><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Play Again</button></div>';return;}let h='<div class="t">'+(p.text||'')+'</div>';if(p.type==='continue'){if(p.contTarget&&P[p.contTarget]){h+='<button class="c"style="border-left-color:#b8860b;background:#fff8e7;font-style:italic;text-align:center"onclick="show(\\''+p.contTarget+'\\')"><span class="cl"style="background:#b8860b">➡</span>Continue →</button>';}else{h+='<p style="text-align:center;color:#991b1b">— The end —</p>';}}else{p.choices.forEach(c=>{h+='<button class="c"onclick="go(\\''+c.target+'\\',\\''+c.targetType+'\\')"><span class="cl">'+c.letter+'</span>'+(c.text||'Continue...').replace(/</g,'&lt;')+'</button>';});}d.innerHTML=h;window.scrollTo(0,0);}function go(t,type){if(type==='death'){document.getElementById('s').innerHTML='<div class="e death"><h2>💀 You have died.</h2><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Try Again</button></div>';return;}if(type==='victory'){document.getElementById('s').innerHTML='<div class="e victory"><h2>🏆 Victory!</h2><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Play Again</button></div>';return;}show(t);}show('start');<\/script></body></html>`;
+  const blob=new Blob([html],{type:'text/html'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=slug(title)+'.html';a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Exported! Download should start.');
+}
+
+// ====== AGE GATING ======
+// Persistent birthday storage + rating-based access control
+// Rating thresholds (from RATINGS):
+//   ST-1: all ages   ST-2: ~7+   ST-3: ~12+   ST-4: ~16+   ST-5: 18+
+const LS_DOB='sf_dob';       // persistent: 'YYYY-MM-DD'
+const LS_AGE='sf_age_ok';    // legacy: keep for session 18+ ID gate
+const MIN_AGE={1:0,2:7,3:12,4:16,5:18};
+let userAge=-1;
+let ageVerifiedThisSession=false; // 18+ ID check for ST-5 specifically
+
+function loadAge(){
+  try{
+    const v=localStorage.getItem(LS_DOB);
+    userAge=calcAge(v);
+  }catch(e){userAge=-1;}
+}
+function saveDOB(dob){
+  try{localStorage.setItem(LS_DOB,dob);}catch(e){}
+  userAge=calcAge(dob);
+}
+function canViewRating(score){
+  if(userAge<0)return false; // need to ask first
+  const min=MIN_AGE[score]||0;
+  return userAge>=min;
+}
+function isAgeVerified(){return ageVerifiedThisSession||userAge>=18;}
+
+function showLockedMsgById(id){
+  const f=findAnyStory(id);if(!f)return;
+  showLockedMsg(f.story.title,f.story.rating,function(){readPublishedId(id);});
+}
+function showLockedMsg(title,rating,onDone){
+  if(typeof rating==='string'){const f=findAnyStory(rating);if(f){title=f.story.title;rating=f.story.rating;}}
+  if(!rating||!rating.r)rating=rateFromScore((rating&&rating.score)|2);
+  const min=MIN_AGE[rating.score]||0;
+  const ageLine=userAge<0?'We have not asked your age yet.':'Based on your birthdate you are <b>'+userAge+'</b>.';
+  window.__lockRetry=onDone||null;
+  showModal('🔒 Age-Restricted',
+    `<div style="text-align:center">
+       <div style="font-size:3em;margin-bottom:8px">🔒</div>
+       <h3 style="color:#991b1b;border:none;margin-bottom:8px">"${esc(title)}" is ${rating.r.code} — ${rating.r.name}</h3>
+       <p>This story is for ages <b>${min}+</b>. ${ageLine}</p>
+       ${userAge>=0?'<p style="font-size:.85em;color:#6b4c3b;margin-top:10px">Birthdate on file: <b>'+esc(localStorage.getItem(LS_DOB)||'')+'</b>.</p>':''}
+       <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+         <button class="btn btn-sec" onclick="closeModal();switchTab(\'lib\')">← Back</button>
+         <button class="btn btn-gold" onclick="closeModal();askBirthday(true,function(){try{if(window.__lockRetry)window.__lockRetry();}catch(e){}window.__lockRetry=null;})">✏️ Change my birthday & retry</button>
+       </div>
+     </div>`);
+}
+
+function askBirthday(force,onApproved){
+  // If we already know age and not forced, fire callback immediately and skip
+  if(!force&&userAge>=0){if(onApproved)try{onApproved();}catch(e){}return;}
+  // If called with onApproved while already editing w/ age set, treat as change-and-continue
+  const editing=(userAge>=0); // true when called from editBirthday, false on first-run
+  let m=document.getElementById('agegate');
+  let box=document.getElementById('agebox');
+  const currentDob=localStorage.getItem(LS_DOB)||'';
+  // Reuse age gate modal for the friendly DOB prompt
+  box.innerHTML=`
+    <div class="warn" style="color:#b8860b!important">🎂</div>
+    <h2 style="color:#b8860b!important">${editing?'Change your birthday':'How old are you?'}</h2>
+    <p class="sub">${editing?'Pick a new birthday below. Your age controls which stories you can read.':'Storyteller shows you stories that match your age.<br>Enter your birthday — we save it on this device so you only have to tell us once.'}</p>
+    <div style="max-width:320px;margin:20px auto 0">
+      <label style="color:#f4ecd8">Your birthday</label>
+      <input type="date" id="bdDob" max="${new Date().toISOString().slice(0,10)}" style="font-size:1.05em;padding:10px" value="${currentDob}">
+      ${currentDob?`<div style="font-size:.8em;color:#d4a8a8;margin-top:4px">Currently saved: <b>${currentDob}</b> (age ${userAge})</div>`:''}
+      <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="id-scan-btn" style="background:linear-gradient(135deg,#b8860b,#8b6508)" onclick="submitBirthday()">${editing?'💾 Save birthday':'Continue →'}</button>
+        <button class="btn btn-sec" style="background:#4a2020;color:#e8b4b4;border-color:#8b1a1a" onclick="closeAgeGate(true)">${editing?'Cancel':'Skip for now'}</button>
+      </div>
+      <div class="deny-note" style="border-left-color:#b8860b;color:#e8d5a8">Your birthday stays on this device only (localStorage). It is never sent anywhere. You can change it any time from the age button in the top-right.</div>
+    </div>`;
+  box.style.borderColor='#b8860b';
+  // Mark this gate as the birthday prompt. Outside-click/ESC won't dismiss on first-run (must enter DOB),
+  // but editing mode (Cancel button shown) allows close.
+  m._mode=editing?'birthday-edit':'birthday';
+  openOverlay('agegate');
+  setTimeout(()=>{
+    const d=document.getElementById('bdDob');
+    if(d){
+      d.focus();
+      // Enter submits
+      d.addEventListener('keydown',function onKey(e){if(e.key==='Enter'){e.preventDefault();submitBirthday();}});
+    }
+  },100);
+  m._onApproved=onApproved||null;
+}
+function submitBirthday(){
+  const v=document.getElementById('bdDob').value;
+  if(!v){toast('Pick your birthday');return;}
+  const age=calcAge(v);
+  if(age<1){toast('That doesn\'t look like a valid birthday');return;}
+  if(age>120){toast('Please enter a real birthday');return;}
+  saveDOB(v);
+  const cb=document.getElementById('agegate')._onApproved;
+  document.getElementById('agebox').style.borderColor='#dc2626';
+  closeAgeGate(true);
+  renderAgeBadge();
+  renderLib();
+  updateLibCount();
+  toast('Saved! Showing stories for age '+age);
+  // Fire pending callback (e.g. retry publish, open locked story) after the gate is gone
+  if(cb){setTimeout(()=>{try{cb();}catch(e){console.error(e);}},50);}
+}
+function renderAgeBadge(){
+  const el=document.getElementById('ageBadge');
+  if(!el)return;
+  if(userAge<0){el.textContent='🎂 Set age';el.style.display='';return;}
+  el.textContent='👤 Age '+userAge;
+  el.style.display='';
+  el.title='Click to change your birthday';
+}
+function editBirthday(){
+  askBirthday(true);
+}
+function openAgeGate(title,onApproved){
+  const gate=document.getElementById('agegate');
+  const box=document.getElementById('agebox');
+  gate._mode='idcheck';
+  box.style.borderColor='#dc2626';
+  openOverlay('agegate');
+  box.innerHTML=`
+    <div class="warn">🔞</div>
+    <h2>⚠️ Age-Restricted Content</h2>
+    <p class="sub"><b>"${esc(title)}"</b> is rated <span style="color:#dc2626;font-weight:900">ST-5 — Mature (18+)</span>.<br>You must verify your age to read this story.</p>
+    <div class="id-scanner" id="idScanner">
+      <div class="scanline"></div>
+      <div id="idForm">
+        <div style="text-align:center;margin-bottom:10px;font-size:.9em;color:#d4a8a8">🪪 Government-issued ID required</div>
+        <div class="row2">
+          <div>
+            <label>First &amp; Last Name</label>
+            <input type="text" id="idName" placeholder="Jane Doe" autocomplete="name">
+          </div>
+          <div>
+            <label>Date of Birth</label>
+            <input type="date" id="idDob">
+          </div>
+        </div>
+        <label>ID Number</label>
+        <input type="text" id="idNum" placeholder="Driver's license / State ID number" autocomplete="off">
+        <div style="margin-top:14px;text-align:center">
+          <button class="id-scan-btn" onclick="runIDScan()">📷 Scan ID &amp; Verify with AI</button>
+        </div>
+        <div class="deny-note">Minors attempting to access mature content will be blocked. The AI verifies that your DOB makes you 18+, your ID is valid format, and cross-checks the information. Verified status lasts for this session only on your device.</div>
+      </div>
+      <div id="idScanning" style="display:none;padding:20px 0">
+        <div class="dots" style="color:#dc2626;font-size:1.6em"><span>●</span><span>●</span><span>●</span></div>
+        <p id="idScanMsg" style="margin-top:12px;color:#e8b4b4;font-style:italic">Activating camera…</p>
+      </div>
+      <div class="id-result" id="idResult"></div>
+    </div>
+    <div style="text-align:center;margin-top:10px">
+      <button class="btn btn-sec" style="background:#4a2020;color:#e8b4b4;border-color:#8b1a1a" onclick="closeAgeGate()">← Cancel</button>
+    </div>`;
+  setTimeout(()=>{const n=document.getElementById('idName');if(n)n.focus();},100);
+  gate._onApproved=onApproved;
+}
+function closeAgeGate(force){
+  const g=document.getElementById('agegate');
+  // First-run birthday prompt (not editing) cannot be dismissed unless force=true or Cancel clicked
+  if(g._mode==='birthday'&&!force)return;
+  // birthday-edit mode can always be dismissed
+  closeOverlay('agegate');
+  g.style.display='none';
+  g._mode=null;
+  const box=document.getElementById('agebox');if(box)box.style.borderColor='#dc2626';
+}
+document.getElementById('agegate').addEventListener('click',e=>{
+  if(e.target.id==='agegate'){
+    // Outside click: only close for ID gates and birthday-edit, not first-run birthday prompt
+    const g=document.getElementById('agegate');
+    if(g._mode!=='birthday')closeAgeGate();
+  }
+});
+
+function calcAge(dobStr){
+  if(!dobStr)return 0;
+  const d=new Date(dobStr);
+  if(isNaN(d.getTime()))return 0;
+  const now=new Date();
+  let age=now.getFullYear()-d.getFullYear();
+  const m=now.getMonth()-d.getMonth();
+  if(m<0||(m===0&&now.getDate()<d.getDate()))age--;
+  return age;
+}
+
+function fakeIDChecksum(num){
+  // Simple format validation: 6-14 alphanumeric
+  return /^[A-Za-z0-9 -]{6,20}$/.test(num.trim());
+}
+
+function runIDScan(){
+  const name=document.getElementById('idName').value.trim();
+  const dob=document.getElementById('idDob').value;
+  const idnum=document.getElementById('idNum').value.trim();
+  const reasons=[];
+  if(!name||name.split(/\s+/).length<2)reasons.push('Full name not provided');
+  const age=calcAge(dob);
+  if(!dob||age<1)reasons.push('Date of birth not provided');
+  else if(age<18)reasons.push(`Age calculated as ${age} — under 18`);
+  else if(age>120)reasons.push('DOB appears invalid (age > 120)');
+  if(!fakeIDChecksum(idnum))reasons.push('ID number not in valid format');
+
+  document.getElementById('idForm').style.display='none';
+  document.getElementById('idScanning').style.display='block';
+  const msg=document.getElementById('idScanMsg');
+  const steps=[
+    'Activating camera…',
+    '🔍 Scanning ID barcode…',
+    '📷 Capturing ID image…',
+    '🤖 AI analyzing document…',
+    '🔎 Checking holograms &amp; UV features…',
+    '📅 Cross-referencing DOB with today\'s date…',
+    '🔗 Validating ID against issuing authority…',
+    '⏳ Finalizing verification…'
+  ];
+  let i=0;msg.textContent=steps[0];
+  const approved = reasons.length===0;
+  const denialReasons=reasons.slice();
+  // Random AI "quirk" flags (cosmetic: add one minor check concern)
+  const iv=setInterval(()=>{
+    i++;
+    if(i>=steps.length){
+      clearInterval(iv);showIDResult(approved,denialReasons,age);return;
+    }
+    msg.textContent=steps[i];
+  },380);
+}
+
+function showIDResult(approved,reasons,age){
+  document.getElementById('idScanning').style.display='none';
+  const res=document.getElementById('idResult');
+  if(approved){
+    ageVerifiedThisSession=true;
+    res.className='id-result approved';
+    res.innerHTML=`<div class="id-big">✅</div><h3 style="color:#22c55e;border:none">ID Approved</h3><p style="margin-top:6px">AI verified you are <b>${age} years old</b> (18+).<br>Access granted to mature content.</p>
+    <button class="btn" style="background:#22c55e;margin-top:14px" onclick="finishAgeApproved()">Continue →</button>`;
+  }else{
+    res.className='id-result denied';
+    res.innerHTML=`<div class="id-big">🚫</div><h3 style="color:#dc2626;border:none">Access Denied</h3><p style="margin-top:6px">AI could not verify you are 18+:</p><ul style="text-align:left;margin:10px auto;display:inline-block">${reasons.map(r=>'<li>'+esc(r)+'</li>').join('')}</ul>
+    <p style="font-size:.85em;margin-top:10px;opacity:.8">If this is an error, double-check your entries and try again.</p>
+    <div style="margin-top:14px;display:flex;gap:8px;justify-content:center">
+      <button class="btn" style="background:#dc2626" onclick="retryIDScan()">Try Again</button>
+      <button class="btn btn-sec" style="background:#4a2020;color:#e8b4b4;border-color:#8b1a1a" onclick="closeAgeGate()">Cancel</button>
+    </div>`;
+  }
+}
+function retryIDScan(){
+  document.getElementById('idResult').className='id-result';document.getElementById('idResult').innerHTML='';
+  document.getElementById('idForm').style.display='block';
+  setTimeout(()=>{const n=document.getElementById('idName');if(n)n.focus();},50);
+}
+function finishAgeApproved(){
+  const cb=document.getElementById('agegate')._onApproved;
+  closeAgeGate();
+  if(cb)cb();
+}
+
+// ====== LIBRARY & PUBLISH ======
+const LS_LIB='sf_library';
+const LS_PLAYED='sf_played'; // {storyId: {started:true, died:bool}}
+let library=[];
+let playedTracker={}; // in-session play state: storyId -> {died:bool}
+
+function loadLib(){
+  try{const s=localStorage.getItem(LS_LIB);if(s)library=JSON.parse(s);}catch(e){library=[];}
+  library.forEach(s=>{
+    if(typeof s.plays!=='number')s.plays=0;
+    if(typeof s.firstTryWins!=='number')s.firstTryWins=0;
+    if(s._owned!==false&&!s._community&&!s._imported)s._owned=true;
+  });
+}
+function fixOwnedStats(){
+  // After loadPlayed() has populated playedTracker, reset any fake stats
+  // that were previously seeded onto the user's own unpublished-played stories.
+  let changed=false;
+  library.forEach(s=>{
+    if(s._owned&&!s._community&&!s._imported){
+      const played=playedTracker[s.id];
+      // If user never actually opened it but stats were faked, reset to 0
+      if((!played||(!played.died&&!played.finished))&&s.plays>0&&s._seeded){
+        s.plays=0;s.firstTryWins=0;changed=true;
+      }
+    }
+  });
+  if(changed)saveLib();
+}
+function saveLib(){try{localStorage.setItem(LS_LIB,JSON.stringify(library));}catch(e){}}
+function loadPlayed(){try{const s=localStorage.getItem(LS_PLAYED);if(s)playedTracker=JSON.parse(s);}catch(e){playedTracker={};}}
+function savePlayed(){try{localStorage.setItem(LS_PLAYED,JSON.stringify(playedTracker));}catch(e){}}
+
+// Deterministic pseudo-random for seeding initial play counts (based on story id + title hash)
+function seedFromString(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0)/4294967295;}
+function seedStoryStats(s){
+  if(s._seeded)return;
+  // Only fabricate plausible-looking stats for stories that came from elsewhere
+  // (imported/community/seeded). The user's own published stories start at 0.
+  if(s._owned || (!s._community && !s._seededForce)){
+    if(typeof s.plays!=='number')s.plays=0;
+    if(typeof s.firstTryWins!=='number')s.firstTryWins=0;
+    s._seeded=true;
+    return;
+  }
+  const key=(s.id||'')+'|'+(s.title||'');
+  const r=seedFromString(key);
+  s.plays=Math.floor(12+r*880);
+  const rating=s.rating?s.rating.score:3;
+  const baseWinRate=[0.85,0.7,0.5,0.3,0.12][rating-1]||0.5;
+  const winRate=Math.max(0.05,Math.min(0.95,baseWinRate+(r-0.5)*0.3));
+  s.firstTryWins=Math.floor(s.plays*winRate);
+  s._seeded=true;
+}
+function updateLibCount(){const el=document.getElementById('libCount');if(el)el.textContent=library.length;}
+
+// Age rating AI analyzer (heuristic-based, simulates content-analysis AI)
+const RATINGS={
+  st1:{code:'ST-1',name:'General',color:'st1',short:'All ages',desc:'Suitable for all ages. No scary moments, no violence, simple friendly adventures.'},
+  st2:{code:'ST-2',name:'Mild',color:'st2',short:'Ages 7+',desc:'Mild adventure tension, some cartoon peril, no real violence or dark themes. Safe for most children.'},
+  st3:{code:'ST-3',name:'Moderate',color:'st3',short:'Ages 12+',desc:'Moderate tension, fantasy violence, scary moments, mild language. Similar to a PG film.'},
+  st4:{code:'ST-4',name:'Intense',color:'st4',short:'Ages 16+',desc:'Intense scenes, graphic descriptions of danger/death, strong language, dark themes, horror elements.'},
+  st5:{code:'ST-5',name:'Mature',color:'st5',short:'Ages 18+',desc:'Graphic violence, horror, mature themes, disturbing imagery, strong language. Adult audiences only.'}
+};
+
+function analyzeRating(story){
+  // Combine all text
+  let all='';
+  for(const id in story.passages){
+    const p=story.passages[id];
+    all+=' '+p.title+' '+p.text;
+    p.choices.forEach(c=>{all+=' '+c.text;});
+  }
+  all=all.toLowerCase();
+  let score=1;
+  const reasons=[];
+
+  // Death passages exist — baseline
+  const deathCount=Object.values(story.passages).filter(p=>p.type==='death').length;
+  const vicCount=Object.values(story.passages).filter(p=>p.type==='victory').length;
+
+  // Keyword scans
+  const mild=['afraid','scary','spooky','dark','shadow','monster','ghost','creepy','danger','lost','hide','scream','chase','run'];
+  const moderate=['fight','sword','blood','wound','injury','kill','killed','attack','arrow','blade','enemy','war','battle','knife','gun','dead body','corpse','curse','curse'];
+  const intense=['gore','gory','slaughter','dismember','torn apart','screams in agony','drowns','burned alive','torture','mutilat','horror','demonic','nightmare','choke','gasping','viscera','intestines','decapitat','stabbed','shot','bleeding heavily'];
+  const mature=['graphic','brutal','grotesque','sadistic','sexual','assault','suicide','self-harm','rape','nazi','tortur','skull crushed','eviscerat','mangled','cannibal','necrophil'];
+
+  const mildHits=mild.filter(w=>new RegExp('\\b'+w.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&')+'\\b','i').test(all));
+  const modHits=moderate.filter(w=>all.includes(w));
+  const intHits=intense.filter(w=>all.includes(w));
+  const matHits=mature.filter(w=>all.includes(w));
+
+  if(deathCount===0&&mildHits.length===0&&modHits.length===0){
+    score=1;reasons.push('No danger, violence, or scary content detected.');
+  }else{
+    if(mildHits.length>0)score=Math.max(score,2);
+    if(modHits.length>0||deathCount>0)score=Math.max(score,3);
+    if(intHits.length>0)score=Math.max(score,4);
+    if(matHits.length>0)score=Math.max(score,5);
+
+    // Adjust by density
+    const words=all.split(/\s+/).filter(Boolean).length;
+    const dangerWords=mildHits.length+modHits.length*2+intHits.length*3+matHits.length*5;
+    const density=dangerWords/Math.max(words,1);
+
+    if(score===3&&density>0.04)score=4;
+    if(score===2&&deathCount>=3)score=3;
+    if(score===4&&intHits.length>=3)score=5;
+
+    // Build reasons
+    if(matHits.length)reasons.push('Detected mature/disturbing keywords: '+matHits.slice(0,4).join(', '));
+    if(intHits.length&&score>=4)reasons.push('Intense or graphic content keywords: '+intHits.slice(0,4).join(', '));
+    else if(modHits.length)reasons.push('Violence/danger keywords: '+modHits.slice(0,4).join(', '));
+    else if(mildHits.length)reasons.push('Mild tense/spooky elements: '+mildHits.slice(0,4).join(', '));
+    if(deathCount===1)reasons.push('1 death ending.');
+    else if(deathCount>1)reasons.push(deathCount+' death endings — choices carry life-or-death stakes.');
+  }
+  if(reasons.length===0)reasons.push('Light, friendly content throughout.');
+  const schoolFriendly = score<=2;
+  return {score,r:RATINGS['st'+score],reasons,schoolFriendly};
+}
+
+// Publish wizard state
+let pubData=null;
+function autoDescription(){
+  // Build a brief description from the start passage text
+  const sid=findPidByLabel('start');
+  if(!sid)return 'A choose-your-own-adventure story.';
+  const s=cyoa.passages[sid].text.trim();
+  const firstLine=s.split(/\n/)[0];
+  return firstLine.slice(0,160)+(firstLine.length>160?'...':'');
+}
+function startPublish(quick){
+  if(!curPid&&!findPidByLabel('start')){toast('No passage to publish');return;}
+  if(!findPidByLabel('start')){
+    if(!confirm('No "start" passage found — publish anyway?'))return;
+  }
+  // Make sure we're on the Build tab so the editor form reflects actual story data
+  switchTab('cyoa');
+  // If no passage is selected but start exists, select start and render editor first
+  if(!curPid){const s=findPidByLabel('start');if(s){curPid=s;}}
+  if(curPid){renderList();renderEditor();savePassageSilent();}
+  const probs=validateStory();
+  if(probs.length>0){
+    showModal('⚠ Finish your story first',
+      '<p style="margin-bottom:10px">Fix these broken links before publishing:</p><ul style="padding-left:20px;color:#991b1b;line-height:1.7">'+probs.slice(0,8).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><div style="text-align:right;margin-top:12px"><button class="btn btn-sec" onclick="closeModal()">Okay</button></div>');
+    return;
+  }
+  // Age gate for publish — need to know age before rating-check
+  if(userAge<0){
+    askBirthday(true,()=>startPublish(quick));
+    return;
+  }
+  if(!curPid){const s=findPidByLabel('start');if(s)curPid=s;}
+  pubData={
+    title:document.getElementById('storyTitle').value.trim()||'Untitled Adventure',
+    description:autoDescription(),
+    series:'',
+    author:'You',
+    snapshot:JSON.parse(JSON.stringify(cyoa)),
+    publishedAt:Date.now()
+  };
+  // Always show the title/description/series form first (quick or full publish)
+  openPub('step1');
+  openOverlay('pubw');
+}
+function closePub(){closeOverlay('pubw');pubData=null;}
+document.getElementById('pubw').addEventListener('click',e=>{if(e.target.id==='pubw')closePub();});
+
+function openPub(step){
+  const box=document.getElementById('pubbox');
+  if(step==='step1'){
+    // Collect existing series for autocomplete + clickable chips (split multi-series entries by comma)
+    const seriesSet=new Set();
+    library.forEach(s=>{
+      if(!s.series)return;
+      String(s.series).split(/[,;]/).map(x=>x.trim()).filter(Boolean).forEach(n=>seriesSet.add(n));
+    });
+    const series=[...seriesSet].slice(0,20);
+    const chips=series.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${series.map(s=>`<button type="button" class="pub-series-chip" onclick="addPubSeries('${esc(s).replace(/'/g,"\\'")}')" title="Add to series">${esc(s)}</button>`).join('')}</div>`:'';
+    const dl=series.map(s=>`<option value="${esc(s)}">`).join('');
+    box.innerHTML=`
+      <button class="pub-x" onclick="closePub()">✕</button>
+      <h2>📢 Publish Your Adventure</h2>
+      <p class="pubsub">Give it a title, a short description, and optionally add it to one or more series.</p>
+      <div class="pubstep active">
+        <label style="font-weight:700;color:#8b2500;margin-top:4px">Title <span style="color:#991b1b">*</span></label>
+        <input type="text" id="pubTitle" value="${esc(pubData.title)}" placeholder="Adventure title" maxlength="80" style="font-size:1.1em;padding:10px">
+
+        <label style="font-weight:700;color:#8b2500">Description <span style="color:#991b1b">*</span></label>
+        <textarea id="pubDesc" placeholder="What is this story about? Who is the hero? What choices will they face?" style="min-height:90px;padding:10px;line-height:1.5">${esc(pubData.description)}</textarea>
+        <div style="text-align:right;font-size:.8em;color:#6b4c3b;margin-top:-2px"><span id="descCount">0</span>/280</div>
+
+        <label style="font-weight:700;color:#8b2500">Series <span style="font-weight:400;color:#6b4c3b">(optional — group related adventures)</span></label>
+        <input type="text" id="pubSeries" list="pubseries-dl" value="${esc(pubData.series)}" placeholder="e.g. The Darkwood Chronicles (comma-separate for multiple)">
+        <datalist id="pubseries-dl">${dl}</datalist>
+        ${chips?`<div style="font-size:.8em;color:#6b4c3b;margin:6px 0 2px">Click to add an existing series:</div>${chips}`:''}
+        <div style="font-size:.8em;color:#6b4c3b;margin-top:4px">Tip: you can add this story to multiple series by separating them with commas (e.g. <em>Darkwood, Halloween Specials</em>).</div>
+
+        <div style="display:flex;gap:10px;margin-top:22px;justify-content:flex-end;flex-wrap:wrap">
+          <button class="btn btn-sec" onclick="closePub()">Cancel</button>
+          <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.05em;padding:11px 22px" onclick="pubAnalyze()">🤖 AI Analyze &amp; Publish →</button>
+        </div>
+      </div>`;
+    setTimeout(()=>{
+      const t=document.getElementById('pubTitle');if(t)t.focus();
+      const d=document.getElementById('pubDesc');
+      const c=document.getElementById('descCount');
+      function upd(){if(c&&d)c.textContent=d.value.length;}
+      if(d){d.addEventListener('input',upd);upd();d.maxLength=280;}
+    },50);
+  }else if(step==='step2'){
+    box.innerHTML=`
+      <button class="pub-x" onclick="closePub()">✕</button>
+      <div class="pubstep active scan">
+        <h2>🤖 AI Analyzing Your Story</h2>
+        <p class="pubsub">Reading passages, examining choices, scanning content...</p>
+        <div class="dots"><span>●</span><span>●</span><span>●</span></div>
+        <p style="margin-top:20px;font-size:.9em;color:#6b4c3b;line-height:2" id="scanProg">Initializing analysis...</p>
+      </div>`;
+    const msg=document.getElementById('scanProg');
+    const steps=['Reading all passages...','Analyzing choice structure...','Scanning for violence & danger...','Checking language and themes...','Counting death & ending passages...','Calculating age rating...'];
+    let i=0;
+    const iv=setInterval(()=>{
+      i++;
+      if(i>=steps.length){clearInterval(iv);setTimeout(pubShowRating,600);return;}
+      msg.textContent=steps[i];
+    },450);
+    // Compute rating now (in background while animating)
+    pubData.rating=analyzeRating(pubData.snapshot);
+  }else if(step==='step3'){
+    const r=pubData.rating;
+    const countPass=Object.keys(pubData.snapshot.passages).length;
+    const deaths=Object.values(pubData.snapshot.passages).filter(p=>p.type==='death').length;
+    const vics=Object.values(pubData.snapshot.passages).filter(p=>p.type==='victory').length;
+    const schoolBadge=r.schoolFriendly?`<div style="margin-top:14px;text-align:center"><span class="rb school" style="font-size:.95em;padding:6px 14px">🏫 SCHOOL-FRIENDLY ✓</span><div style="font-size:.8em;color:#2563eb;margin-top:4px">Safe to read and write in class — no inappropriate content</div></div>`:'';
+    const seriesLine=pubData.series?`<div style="margin-top:10px;font-size:.9em;color:#6b4c3b"><b>📚 Series:</b> ${pubData.series.split(/[,;]/).map(s=>`<span class="rb" style="background:#fde68a;color:#78350f;margin:0 4px 4px 0;display:inline-block">${esc(s.trim())}</span>`).join('')}</div>`:'';
+    box.innerHTML=`
+      <button class="pub-x" onclick="closePub()">✕</button>
+      <h2>✅ Published!</h2>
+      <p class="pubsub">"${esc(pubData.title)}" is in your library.</p>
+      <div class="pubstep active">
+        <div style="background:#faf3e3;border:2px solid #b8860b;border-radius:10px;padding:12px 14px;margin-bottom:12px">
+          <div style="font-weight:700;color:#8b2500;font-size:1.1em">${esc(pubData.title)}</div>
+          <div style="color:#6b4c3b;font-size:.9em;margin-top:4px">${esc(pubData.description)}</div>
+          ${seriesLine}
+        </div>
+        <div class="rating-card ${r.r.color}">
+          <div style="font-size:.85em;text-transform:uppercase;letter-spacing:2px;opacity:.7">AI Age Rating</div>
+          <div class="rating-big">${r.r.code}</div>
+          <div class="rating-sub">${r.r.name} — ${r.r.short}</div>
+          <div class="rating-desc">${r.r.desc}</div>
+          ${schoolBadge}
+          <div class="rating-reason">Analysis: ${r.reasons.join(' ')}<br>
+          <span style="opacity:.7">${countPass} passages · ${deaths} death${deaths!==1?'s':''} · ${vics} ending${vics!==1?'s':''}</span></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-gold" onclick="closePub();switchTab('lib')">📚 Go to Library</button>
+          <button class="btn" onclick="closePub();readPublishedId('${library[library.length-1].id}')">▶ Read Now</button>
+          <button class="btn btn-sec" onclick="closePub()">Keep Editing</button>
+        </div>
+      </div>`;
+  }
+}
+function addPubSeries(name){
+  const inp=document.getElementById('pubSeries');if(!inp)return;
+  const cur=inp.value.split(/[,;]/).map(s=>s.trim()).filter(Boolean);
+  if(cur.some(s=>s.toLowerCase()===name.toLowerCase())){toast('"'+name+'" already added');return;}
+  cur.push(name);
+  inp.value=cur.join(', ');
+  inp.focus();
+}
+function pubAnalyze(){
+  const titleEl=document.getElementById('pubTitle');
+  const descEl=document.getElementById('pubDesc');
+  const serEl=document.getElementById('pubSeries');
+  const title=(titleEl.value||'').trim();
+  const desc=(descEl.value||'').trim();
+  if(!title){toast('Give your story a title');titleEl.focus();return;}
+  if(title.length<3){toast('Title is too short');titleEl.focus();return;}
+  if(!desc){toast('Add a short description (one or two sentences)');descEl.focus();return;}
+  if(desc.length<10){toast('Description is too short — tell readers what it\u2019s about');descEl.focus();return;}
+  // Sync back to story title input too
+  document.getElementById('storyTitle').value=title;saveTitle();
+  // Normalize series: trim each, dedupe (case-insensitive), keep order
+  const seriesRaw=(serEl.value||'').trim();
+  const seen=new Set();
+  const seriesList=seriesRaw
+    .split(/[,;]/)
+    .map(s=>s.trim())
+    .filter(Boolean)
+    .filter(s=>{const k=s.toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});
+  pubData.title=title;
+  pubData.description=desc;
+  pubData.series=seriesList.join(', ');
+  pubData.seriesList=seriesList;
+  openPub('step2');
+}
+function pubShowRating(){
+  // Age-gate publish if story is rated above user's age
+  if(userAge>=0&&!canViewRating(pubData.rating.score)){
+    const min=MIN_AGE[pubData.rating.score]||0;
+    const box=document.getElementById('pubbox');
+    box.innerHTML=`
+      <button class="pub-x" onclick="closePub()">✕</button>
+      <h2 style="color:#991b1b">🔒 Age-Restricted</h2>
+      <p class="pubsub">Your story was rated <b>${pubData.rating.r.code} — ${pubData.rating.r.name} (${min}+)</b>, but you are ${userAge}.</p>
+      <p style="text-align:center;color:#6b4c3b">You cannot publish a story rated above your own age. Edit the content to make it milder, or correct your birthday.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px">
+        <button class="btn btn-sec" onclick="openPub('step1')">← Edit story</button>
+        <button class="btn btn-gold" onclick="closePub();askBirthday(true,function(){startPublish(true);})">✏️ Change birthday & retry</button>
+        <button class="btn btn-sec" onclick="closePub()">Cancel</button>
+      </div>`;
+    return;
+  }
+  // ST-5 gate at publish time too — ID verification required to publish mature
+  if(pubData.rating.score===5&&!isAgeVerified()){
+    // Show interstitial saying rating is mature, require ID before saving
+    const box=document.getElementById('pubbox');
+    box.innerHTML=`
+      <button class="pub-x" onclick="closePub()">✕</button>
+      <h2 style="color:#dc2626">🔞 Mature Content Detected</h2>
+      <p class="pubsub">Your story was rated ST-5 (Mature 18+). You must verify you're 18+ before publishing.</p>
+      <div class="rating-card st5">
+        <div style="font-size:.85em;text-transform:uppercase;letter-spacing:2px;opacity:.7">AI Age Rating</div>
+        <div class="rating-big">ST-5</div>
+        <div class="rating-sub">Mature — Ages 18+</div>
+        <div class="rating-desc">${pubData.rating.r.desc}</div>
+        <div class="rating-reason">${pubData.rating.reasons.join(' ')}</div>
+      </div>
+      <p style="text-align:center;font-size:.9em;color:#6b4c3b;margin:14px 0">Readers will also need to verify age with an ID scan before opening this story.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn" style="background:linear-gradient(135deg,#dc2626,#991b1b)" onclick="pubAgeVerify()">🪪 Verify My Age to Publish</button>
+        <button class="btn btn-sec" onclick="openPub('step1')">← Edit details</button>
+        <button class="btn btn-sec" onclick="closePub()">Cancel</button>
+      </div>`;
+    return;
+  }
+  finishPublish();
+}
+function pubAgeVerify(){
+  closePub();
+  openAgeGate(pubData.title,()=>{
+    finishPublish();
+    openOverlay('pubw');
+    openPub('step3');
+  });
+}
+function finishPublish(){
+  const entry={
+    id:uid(),
+    title:pubData.title,
+    description:pubData.description,
+    series:pubData.series,
+    author:pubData.author||'You',
+    rating:pubData.rating,
+    story:pubData.snapshot,
+    publishedAt:pubData.publishedAt,
+    plays:0,
+    firstTryWins:0,
+    _seeded:false,
+    _owned:true,
+    _community:false
+  };
+  library.push(entry);
+  saveLib();updateLibCount();renderLib();
+  openPub('step3');
+}
+
+function renderLib(){
+  const mine=document.getElementById('libList');
+  const comm=document.getElementById('commList');
+  library.forEach(s=>{s._owned=!s._community;});
+  // community
+  const commStories=getCommunityStories();
+  if(comm){
+    if(commStories.length===0){
+      comm.innerHTML='<div class="no-lib" style="padding:24px">No community stories yet. When friends share a story code with you, paste it in the box above — it will show up here.</div>';
+    }else{
+      let ch='<div class="library-grid">';
+      commStories.forEach(s=>{ch+=libCard(s);});
+      ch+='</div>';
+      comm.innerHTML=ch;
+    }
+  }
+  if(!mine)return;
+  // Ensure every entry has stats seeded
+  library.forEach(seedStoryStats);
+  const mineList=library.filter(s=>!s._community);
+  if(mineList.length===0){
+    mine.innerHTML='<div class="no-lib">You have not published any adventures yet. Build one in the ✍️ Build tab and hit ⚡ Publish! Or import a code above.</div>';
+    return;
+  }
+  const groups={};const standalone=[];const seenIds=new Set();
+  // Multi-series support: a story can appear under multiple series groups (comma/semicolon separated)
+  mineList.forEach((s,i)=>{
+    const names=s.series?String(s.series).split(/[,;]/).map(x=>x.trim()).filter(Boolean):[];
+    if(names.length){
+      names.forEach(name=>{
+        if(!groups[name])groups[name]=[];
+        groups[name].push({...s,_idx:i,_seriesName:name});
+        seenIds.add(s.id+'::'+name);
+      });
+    }else{
+      standalone.push({...s,_idx:i});
+    }
+  });
+  let html='';
+  Object.keys(groups).sort((a,b)=>a.localeCompare(b)).forEach(series=>{
+    html+=`<div class="series-head">📚 ${esc(series)} <span style="font-weight:400;font-size:.8em;color:#6b4c3b">(${groups[series].length})</span></div><div class="library-grid">`;
+    groups[series].sort((a,b)=>a.publishedAt-b.publishedAt).forEach(s=>{html+=libCard(s);});
+    html+='</div>';
+  });
+  if(standalone.length){
+    html+=`<div class="series-head">Standalone Stories</div><div class="library-grid">`;
+    standalone.sort((a,b)=>b.publishedAt-a.publishedAt).forEach(s=>{html+=libCard(s);});
+    html+='</div>';
+  }
+  mine.innerHTML=html;
+}
+function findLibIdx(id){return library.findIndex(x=>x.id===id);}
+function findAnyStory(id){
+  const i=library.findIndex(x=>x.id===id&&!x._community);
+  if(i>=0)return {story:library[i],index:i,inLib:true};
+  const c=getCommunityStories().find(x=>x.id===id);
+  if(c)return {story:c,index:-1,inLib:false};
+  return null;
+}
+function libCard(s){
+  if(!s.rating||!s.rating.r)s.rating=rateFromScore((s.rating&&s.rating.score)|2);
+  const r=s.rating.r;
+  const d=new Date(s.publishedAt);
+  const dateStr=d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'});
+  const passCount=Object.keys(s.story.passages).length;
+  seedStoryStats(s);
+  const plays=s.plays|0;
+  const wins=s.firstTryWins|0;
+  const pct=plays>0?Math.round((wins/plays)*100):0;
+  const pctCls=pct>=50?'':pct>=25?'warn':'bad';
+  const locked=!canViewRating(s.rating.score);
+  const min=MIN_AGE[s.rating.score]||0;
+  const ageBadge=userAge>=0?' (You are '+userAge+')':'';
+  const clickFn=locked?"event.stopPropagation();showLockedMsg('"+s.id+"')":"readPublishedId('"+s.id+"')";
+  // Multi-series: show first series name + count, or "Standalone"
+  const seriesName=(s.series?String(s.series).split(/[,;]/)[0].trim():'');
+  const seriesExtra=(s.series&&String(s.series).split(/[,;]/).length>1?' +'+(String(s.series).split(/[,;]/).length-1):'');
+  const seriesBit=seriesName?'Part of <b>'+esc(seriesName)+'</b>'+seriesExtra+' · ':'';
+  const statsHtml=plays===0
+    ?'<span class="lstat" style="color:#6b4c3b">🌟 <b>New</b> — not played yet</span>'
+    :'<span class="lstat">👥 <b>'+plays.toLocaleString()+'</b> played</span>'
+     +'<span class="lstat '+pctCls+'">🏆 <b>'+wins.toLocaleString()+'</b> beat it first try <span class="lspct">('+pct+'%)</span></span>';
+  return '<div class="lib-card" data-storyid="'+s.id+'" style="position:relative;'+(locked?'opacity:.75;':'')+'" onclick="'+clickFn+'">'
+    +'<div class="lt">'+(locked?'🔒 ':'')+esc(s.title)+'</div>'
+    +'<div class="ls">'+seriesBit+passCount+' passages · published '+esc(dateStr)+'</div>'
+    +'<div class="ld">'+esc(s.description||'No description.')+'</div>'
+    +'<div class="lmeta">'
+      +'<span class="rb '+r.color+'">'+r.code+(s.rating.score===5?' 🔞':'')+(s.rating.score>1?' · '+min+'+':'')+'</span>'
+      +(s.rating.schoolFriendly?'<span class="rb school" title="School-friendly — appropriate for class">🏫 School</span>':'')
+      +(s.author?'<span class="rb" style="background:#e7d8b8;color:#4a2c1a" title="Author">✍️ '+esc(s.author)+'</span>':'')
+      +(s._community?'<span class="rb" style="background:#fde68a;color:#78350f">🌟 Community</span>':'')
+      +'<span style="flex:1"></span>'
+      +(!s._community?'<button class="xbtn" onclick="event.stopPropagation();shareStoryId(\''+s.id+'\')" title="Share this story (get a code to send to a friend)">🔗</button>':'')
+      +(s._owned?'<button class="xbtn" onclick="event.stopPropagation();deletePublishedId(\''+s.id+'\')" title="Delete">🗑</button>':'')
+    +'</div>'
+    +'<div class="lstats">'+statsHtml+'</div>'
+    +'</div>'
+    +(locked?'<div style="position:absolute;inset:0;background:rgba(44,24,16,.82);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f4ecd8;text-align:center;padding:20px;gap:8px;cursor:pointer" onclick="event.stopPropagation();showLockedMsgById(this.closest(\'.lib-card\').dataset.storyid)" data-storyid="'+s.id+'"><div style="font-size:2.5em">🔒</div><div style="font-weight:700">'+r.code+' — Ages '+min+'+</div><div style="font-size:.82em;opacity:.85">You must be '+min+'+ to read this.'+ageBadge+'</div><div style="margin-top:6px;font-size:.75em;text-decoration:underline">Details</div></div>':'')
+  +'</div>';
+}
+function deletePublishedId(id){
+  const i=findLibIdx(id);if(i<0)return;
+  if(!confirm('Delete "'+library[i].title+'" from your library?'))return;
+  library.splice(i,1);saveLib();updateLibCount();renderLib();toast('Deleted');
+}
+function readPublishedId(id){
+  closePub();
+  const found=findAnyStory(id);
+  if(!found)return;
+  // Gate by rating vs age
+  if(!canViewRating(found.story.rating.score)){showLockedMsg(found.story.title,found.story.rating,function(){readPublishedId(id);});return;}
+  if(found.inLib){readPublished(found.index);return;}
+  // community story: read directly without adding to personal library
+  readStoryObject(found.story,/*addToLib*/false);
+}
+function closeRead(){
+  closeOverlay('readview');
+  try{delete window.rp;delete window.doPubEnd;delete window.__curRead;delete window.rReset;}catch(e){}
+}
+function readPublished(i){
+  closePub();
+  const s=library[i];
+  readStoryObject(s,true,i);
+}
+
+function readStoryObject(s,addToLib,idx){
+  if(!s.rating)s.rating=rateFromScore(2);
+  // First ensure birthday is known
+  if(userAge<0){askBirthday(true,function(){readStoryObject(s,addToLib,idx);});return;}
+  // Age-tier gate
+  if(!canViewRating(s.rating.score)){showLockedMsg(s.title,s.rating,function(){readStoryObject(s,addToLib,idx);});return;}
+  // ST-5 mature also needs ID scan (18+)
+  if(s.rating.score===5&&!isAgeVerified()){
+    openAgeGate(s.title,()=>readStoryObject(s,addToLib,idx));
+    return;
+  }
+  seedStoryStats(s);
+  const sid=s.id;
+  // Track play start — only count ONCE per play session for this story
+  const firstOpen=!playedTracker[sid]||playedTracker[sid].finished;
+  if(firstOpen && addToLib){
+    playedTracker[sid]={died:false,finished:false};
+    s.plays=(s.plays|0)+1;
+    saveLib();savePlayed();updateLibCount();renderLib();
+  }
+  const box=document.getElementById('readview');
+  const body=document.getElementById('readbody');
+  const passages=s.story.passages;
+  const startId=(()=>{for(const id in passages){if(slug(passages[id].title)==='start')return id;}return null;})();
+  if(!startId){body.innerHTML='<h2 style="color:#991b1b">Missing start passage.</h2>';openOverlay('readview');return;}
+  openOverlay('readview');
+  const endPlay=()=>{
+    if(firstOpen && addToLib && !playedTracker[sid].finished){
+      playedTracker[sid].finished=true;
+      savePlayed();
+    }
+  };
+  let _rVisited=new Set();let _rPrev=null;
+  function rReset(){_rVisited=new Set();_rPrev=null;}
+  function findTgt(c){
+    if(c.targetType!=='passage'||!c.target)return null;
+    for(const id in passages){if(slug(passages[id].title)===slug(c.target))return id;}
+    return null;
+  }
+  function pickContinueIdxR(p){
+    const opts=p.choices.map((c,i)=>({c,i,tid:findTgt(c)})).filter(o=>o.tid);
+    if(opts.length===0)return -1;
+    let best=opts.find(o=>o.tid!==_rPrev&&!_rVisited.has(o.tid));
+    if(best)return best.i;
+    best=opts.find(o=>o.tid!==_rPrev);
+    if(best)return best.i;
+    return opts[0].i;
+  }
+  function rp(pid){
+    const p=passages[pid];
+    _rVisited.add(pid);
+    if(!p){body.innerHTML='<h2>Passage not found</h2><button class="btn btn-sec" onclick="closeRead()">Back</button>';return;}
+    if(p.type==='death'){
+      if(firstOpen && addToLib)playedTracker[sid].died=true;
+      body.innerHTML=`<div class="pend death"><h2>💀 You have died...</h2><p>${esc(p.text||'Your journey ends here.')}</p><button class="btn btn-red" onclick='rReset();rp("${startId}")'>↻ Try Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button></div>`;
+      endPlay();return;
+    }
+    if(p.type==='victory'){
+      if(firstOpen && addToLib && !playedTracker[sid].died&&!playedTracker[sid].finished){
+        s.firstTryWins=(s.firstTryWins|0)+1;
+        saveLib();
+      }
+      body.innerHTML=`<div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(p.text||'You win!')}</p><p style="text-align:center;font-size:.85em;color:#6b4c3b;margin-top:10px">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}</div>`;
+      endPlay();return;
+    }
+    const authorLine=s.author?`<span class="rb" style="background:#e7d8b8;color:#4a2c1a">✍️ ${esc(s.author)}</span>`:'';
+    const saveBtn=addToLib?'':`<button class="btn btn-gold" style="padding:4px 10px;font-size:.85em;margin-left:6px" onclick="event.stopPropagation();addCommunityToLibFromRead('${s.id}')">➕ Save to my library</button>`;
+    const shareBtn=`<button class="btn btn-sec" style="padding:4px 10px;font-size:.85em;margin-left:6px" onclick="shareStoryId('${s.id}')">🔗 Share</button>`;
+    let h=`<div style="margin-bottom:8px;display:flex;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-sec" style="padding:4px 10px;font-size:.85em" onclick="closeRead()">← Back to Library</button>${saveBtn}${shareBtn}
+    </div><h1 style="border-bottom:2px solid #b8860b;padding-bottom:8px;margin-bottom:16px">${esc(s.title)}</h1><div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="rb ${s.rating.r.color}" style="font-size:.85em">${s.rating.r.code} — ${s.rating.r.name}</span>${s.rating.schoolFriendly?'<span class="rb school" style="font-size:.85em">🏫 School-Friendly</span>':''}${authorLine}${s.series?'<span style="font-size:.8em;color:#6b4c3b">📚 '+esc(s.series)+'</span>':''}</div><div style="font-style:italic;color:#6b4c3b;margin-bottom:14px;font-size:.9em">${esc(s.description||'')}</div>${renderMediaHTML(p)}<div class="ptxt">${esc(p.text)}</div>`;
+    if(p.type==='continue'){
+      // single Continue button for dialog/narration
+      const tid=p.contTarget?findTgt({target:p.contTarget,targetType:'passage'}):null;
+      if(tid){
+        h+=`<button class="pchoice cont" onclick="_rPrev='${pid}';rp('${tid}')"><span class="l" style="background:#b8860b">➡</span><em>Continue →</em></button>`;
+      }else{
+        h+='<p style="text-align:center;color:#991b1b">— End of path —</p>';
+        endPlay();
+      }
+    }else if(p.choices.length===0){
+      h+='<p style="text-align:center;color:#991b1b">— The end —</p>';
+      endPlay();
+    }
+    const _cidxCi=pickContinueIdxR(p);
+    let contFn='';
+    p.choices.forEach((c,ci)=>{
+      const tgtType=c.targetType;
+      let goFn='';
+      if(tgtType==='death'){goFn=`_rPrev='${pid}';doPubEnd('death','${startId}')`;}
+      else if(tgtType==='victory'){goFn=`_rPrev='${pid}';doPubEnd('victory','${startId}')`;}
+      else{
+        const tid=findTgt(c);
+        if(tid){
+          const _wasPrev=_rPrev;
+          goFn=`_rPrev='${pid}';rp('${tid}')`;
+          if(ci===_cidxCi)contFn=goFn;
+        }else goFn="alert('That path is not written yet.')";
+      }
+      h+=`<button class="pchoice" onclick="${goFn}"><span class="l">${c.letter}</span>${esc(c.text||'Continue...')}</button>`;
+    });
+    if(contFn){
+      h+=`<button class="pchoice" style="border-left-color:#b8860b;background:#fff8e7;margin-top:12px" onclick="_rPrev='${pid}';${contFn}"><span class="l" style="background:#b8860b">➡</span><em>Continue to next page</em></button>`;
+    }
+    body.innerHTML=h;window.scrollTo(0,0);
+  }
+  window.rp=rp;window.rReset=rReset;
+  window.__curRead=sid;
+  window.doPubEnd=(type,startId)=>{
+    if(type==='death'){
+      if(firstOpen&&addToLib)playedTracker[sid].died=true;
+      body.innerHTML=`<div class="pend death"><h2>💀 You have died.</h2><p>Your journey ends here.</p><button class="btn btn-red" onclick='rReset();rp("${startId}")'>↻ Try Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button></div>`;
+    }else{
+      if(firstOpen&&addToLib&&!playedTracker[sid].died&&!playedTracker[sid].finished){
+        s.firstTryWins=(s.firstTryWins|0)+1;saveLib();
+      }
+      body.innerHTML=`<div class="pend victory"><h2>🏆 The End</h2><p style="text-align:center;font-size:.85em;color:#6b4c3b">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}</div>`;
+    }
+    endPlay();
+  };
+  rp(startId);
+}
+
+// ====== AI CONVERT (smart paste) ======
+// Paste a story with or without choices. AI parses it into passages,
+// recognizes choice lines, chains narration with Continue ->, auto-adds
+// choices where you didn't write them, plants death/victory endings,
+// and connects every path so nothing is broken.
+
+function runConvert(){
+  const text=document.getElementById('convText').value.trim();
+  if(!text){toast('Paste a story first!');return;}
+  if(text.length<40){toast('That\u2019s too short \u2014 paste at least a few sentences.');return;}
+
+  const prog=document.getElementById('convProg');
+  const progText=document.getElementById('convProgText');
+  prog.style.display='block';
+  document.getElementById('convResult').style.display='none';
+
+  const steps=[
+    '\ud83d\udcd6 Reading your story...',
+    '\ud83d\udd0d Finding choices in your writing...',
+    '\u2702\ufe0f Splitting into scenes...',
+    '\u27a1 Chaining narration with Continue...',
+    '\ud83c\udf3f Connecting your choices to scenes...',
+    '\ud83d\udd17 Filling in missing paths...',
+    '\ud83d\udc80 Adding death & victory endings...',
+    '\u2728 Finalizing your adventure!'
+  ];
+  let i=0;progText.textContent=steps[0];
+  const iv=setInterval(()=>{i++;if(i<steps.length)progText.textContent=steps[i];},180);
+  setTimeout(()=>{clearInterval(iv);try{doSmartConvert(text);}catch(e){console.error(e);document.getElementById('convProg').style.display='none';toast('Error: '+e.message);}},1600);
+}
+
+function parseStory(text){
+  const lines=text.split(/\n/);
+  const blocks=[];
+  let cur=null;
+  const choiceRe=/^\s*(?:[A-Za-z]|\d+)\s*[\)\.:\-]\s+/;
+  const bulletRe=/^\s*[-*\u2022]\s+/;
+  function newBlock(){cur={textLines:[],choices:[]};blocks.push(cur);}
+  newBlock();
+  for(const rawLine of lines){
+    const line=rawLine.replace(/\r/g,'');
+    const trimmed=line.trim();
+    if(!trimmed){
+      if(cur.textLines.length||cur.choices.length){newBlock();}
+      continue;
+    }
+    const isChoice=choiceRe.test(trimmed)||bulletRe.test(trimmed);
+    if(isChoice){
+      let t=trimmed.replace(choiceRe,'').replace(bulletRe,'').trim();
+      t=t.replace(/^["\u201c\u201d']+|["\u201c\u201d']+$/g,'').trim();
+      if(t)cur.choices.push(t);
+    }else{
+      if(cur.choices.length){newBlock();cur=blocks[blocks.length-1];}
+      cur.textLines.push(trimmed);
+    }
+  }
+  return blocks.filter(b=>b.textLines.join(' ').trim().length>0||b.choices.length>0);
+}
+
+function titleFromText(txt,i){
+  const firstLine=(txt.split(/\n/)[0]||'').trim();
+  const clean=firstLine.replace(/["\u201c\u201d'\`\u2014\u2013]/g,'').replace(/[^a-zA-Z0-9\s'.]/g,'').trim();
+  let t=(clean.split(/\s+/).filter(w=>w.length>2).slice(0,4).join(' ')||'scene '+(i+1)).toLowerCase();
+  if(t.length>40)t=t.slice(0,40);
+  return t;
+}
+function pickR(arr,seed){let h=2166136261;const s=String(seed);for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return arr[(h>>>0)%arr.length];}
+
+function doSmartConvert(text){
+  const blocks=parseStory(text);
+  if(blocks.length===0){document.getElementById('convProg').style.display='none';toast('Couldn\'t find any scenes \u2014 try pasting again with paragraph breaks.');return;}
+
+  const passages={};
+  const usedTitles=new Set();
+  function uniqTitle(base){
+    let t=base;let n=2;
+    while(usedTitles.has(slug(t)))t=base+' '+(n++);
+    usedTitles.add(slug(t));return t;
+  }
+
+  const deathText='That path leads to an unexpected end. The story closes here.\n\n\u2014 The End \u2014';
+  const vicTextBase='You made it through. Whatever choices brought you here, the path resolves.\n\n\u2014 The End \u2014';
+
+  const deathId=uid();
+  const dTitle=uniqTitle('the end');
+  passages[deathId]={id:deathId,title:dTitle,text:deathText,type:'death',choices:[]};
+  const vicId=uid();
+  passages[vicId]={id:vicId,title:'victory',text:vicTextBase,type:'victory',choices:[]};
+  usedTitles.add(slug('victory'));
+
+  const mainIds=[];
+  blocks.forEach((b,i)=>{
+    const id=uid();
+    const title=i===0?'start':uniqTitle(titleFromText(b.textLines.join(' '),i));
+    const body=b.textLines.join('\n\n');
+    passages[id]={id,title,text:body,type:'continue',choices:[],contTarget:null};
+    mainIds.push(id);
+  });
+
+  for(let i=0;i<mainIds.length;i++){
+    const p=passages[mainIds[i]];
+    if(i<mainIds.length-1)p.contTarget=passages[mainIds[i+1]].title;
+    else {p.type='victory';p.text=(p.text?p.text+'\n\n':'')+vicTextBase;delete p.contTarget;p.choices=[];}
+  }
+
+  let userChoiceCount=0,aiChoiceCount=0;
+  const letters='ABCDEFGHIJ';
+  const forwardFillers=[
+    'Keep going','Press on','Move forward carefully','Take the obvious path','Continue ahead'
+  ];
+  mainIds.forEach((id,i)=>{
+    const p=passages[id];
+    const block=blocks[i];
+    if(block.choices && block.choices.length>0){
+      userChoiceCount+=block.choices.length;
+      p.type='normal';delete p.contTarget;
+      const choices=[];
+      block.choices.forEach((ctext,ci)=>{
+        const lower=ctext.toLowerCase();
+        let targetType='passage',target='';
+        if(/(die|death|kill|ends bad|give up|fail|perish|no escape)/.test(lower)){
+          targetType='death';target=passages[deathId].title;
+        }else if(/(win|victory|succeed|triumph|make it|escape|home at last|happy ending)/.test(lower)){
+          targetType='victory';target='victory';
+        }else{
+          const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'a different path';
+          const tTitle=uniqTitle(tBase);
+          const nextId=i+1<mainIds.length?mainIds[i+1]:vicId;
+          const nextP=passages[nextId];
+          const bridgeId=uid();
+          passages[bridgeId]={id:bridgeId,title:tTitle,text:'You '+ctext.charAt(0).toLowerCase()+ctext.slice(1)+'.',type:'continue',choices:[],contTarget:nextP.title};
+          target=tTitle;
+        }
+        choices.push({letter:letters[ci],text:ctext,target,targetType});
+      });
+      if(i<mainIds.length-1){
+        const nextTitle=passages[mainIds[i+1]].title;
+        if(!choices.some(c=>/keep going|press on|continue|forward/.test(c.text.toLowerCase()))){
+          choices.push({letter:letters[choices.length],text:forwardFillers[i%forwardFillers.length],target:nextTitle,targetType:'passage'});
+        }
+      }
+      p.choices=choices;
+    }
+  });
+
+  const aiOptionPool=[
+    'Stop and look around','Take a risk','Call out','Wait and listen','Turn back for a moment',
+    'Press on despite the feeling','Examine more closely','Take a different approach'
+  ];
+  for(let i=0;i<mainIds.length-1;i++){
+    const p=passages[mainIds[i]];
+    if(p.type!=='continue')continue;
+    if(i%3!==1)continue;
+    p.type='normal';delete p.contTarget;
+    const choices=[];
+    const nextTitle=passages[mainIds[i+1]].title;
+    choices.push({letter:'A',text:'Keep going',target:nextTitle,targetType:'passage'});
+    const detourId=uid();
+    const detourTitle=uniqTitle('another way');
+    const detourText=pickR([
+      'You take a brief detour. The world feels different for a moment, then the path returns to familiar ground.',
+      'Curiosity pulls you aside for a moment. What you find there stays with you, but the way forward remains.',
+      'A small decision shifts the scene. Nothing irreversible \u2014 just a different rhythm for a while.'
+    ],mainIds[i]);
+    passages[detourId]={id:detourId,title:detourTitle,text:detourText,type:'continue',choices:[],contTarget:nextTitle};
+    choices.push({letter:'B',text:aiOptionPool[(i+3)%aiOptionPool.length],target:detourTitle,targetType:'passage'});
+    if(i>1 && (i%5===3)){
+      choices.push({letter:'C',text:'Take the riskier option',target:passages[deathId].title,targetType:'death'});
+      aiChoiceCount++;
+    }
+    p.choices=choices;aiChoiceCount+=choices.length-1;
+  }
+
+  for(const id in passages){
+    const p=passages[id];
+    for(const c of (p.choices||[])){
+      if(c.targetType==='passage'){
+        const exists=Object.values(passages).some(pp=>slug(pp.title)===slug(c.target));
+        if(!exists){c.targetType='death';c.target=passages[deathId].title;}
+      }
+    }
+  }
+
+  cyoa={passages};
+  const tInp=document.getElementById('storyTitle');
+  const firstText=blocks[0].textLines.join(' ');
+  const autoTitle=(firstText.split(/\n/)[0].trim().slice(0,50))||'My Adventure';
+  if(!tInp.value.trim()){tInp.value=autoTitle;saveTitle();}
+  curPid=mainIds[0];prevPid=null;save();
+
+  document.getElementById('convProg').style.display='none';
+  document.getElementById('convResult').style.display='block';
+  const total=Object.keys(passages).length;
+  let msg='Finalized '+total+' passages. Chained narration into Continue \u2192 flow. ';
+  if(userChoiceCount>0)msg+='Wired up your '+userChoiceCount+' written choice'+(userChoiceCount===1?'':'s')+'. ';
+  msg+='Added '+aiChoiceCount+' AI branch'+(aiChoiceCount===1?'':'es')+' for variety. Death & victory endings added. Hit \u25b6 Test play to try it!';
+  document.getElementById('convResultText').textContent=msg;
+  renderList();renderEditor();
+  toast('Story finalized \u2014 ready to play!');
+}
+
+function loadSampleConv(){
+  document.getElementById('convText').value="The lighthouse stood at the cliff edge, dark for forty years. Tonight a thin thread of light spun through the fog.\n\nI climbed the winding path. The door hung open on rusted hinges.\n\nA) Step inside and climb the stairs\nB) Circle around to the back\nC) Turn and head home\n\nThe stairs groaned under my weight. At the top, the lens was cracked, and dust covered everything. But scratched into the glass, in letters that looked fresh, was a single word: RUN.";
+  toast('Sample loaded \u2014 has A/B/C choices, click \u2728 Finalize');
+}
+function loadSampleLinear(){
+  document.getElementById('convText').value="Lila had heard the stories about the old lighthouse. They said it had been dark for forty years \u2014 but on foggy nights, you could still see its light.\n\nShe climbed the winding path as the sun went down. Seagulls cried overhead and the ocean crashed far below. The lighthouse door hung open on rusted hinges.\n\nInside, a spiral staircase wound up into darkness. A cold wind blew from above. Somewhere up there, a floorboard creaked.\n\nAt the top of the stairs she found the lamp room. The lens was cracked, covered in dust. But scratched into the glass, fresh and bright, was a single word: RUN.";
+  toast('Plain story loaded \u2014 AI will add choices for you');
+}
+// ====== COMMUNITY / SHARE / IMPORT ======
+function _p(id,title,text,type,choices){return {id,title,text,type:type||'normal',choices:choices||[]};}
+function _c(letter,text,target,type){return {letter,text,target:target||'',targetType:type||'passage'};}
+// Deterministic seeded stats hash so community cards show plausible plays/win%
+function _seedStats(s){
+  if(s.plays!=null)return;
+  let h=2166136261;const str=s.id+'|'+(s.title||'');
+  for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}
+  const r=(h>>>0)/4294967295;
+  s.plays=15+Math.floor(r*880);
+  s.firstTryWins=Math.floor(s.plays*(0.18+r*0.55));
+}
+function getCommunityStories(){
+  return getImported().map(s=>({...s,_community:true,_imported:true,_owned:false}));
+}
+const LS_IMPORTED='sf_imported';
+const LS_PRO='sf_pro';
+let isPro=false;
+function loadPro(){try{isPro=localStorage.getItem(LS_PRO)==='1';}catch(e){isPro=false;}renderProBadge();}
+function savePro(v){try{localStorage.setItem(LS_PRO,v?'1':'0');}catch(e){}isPro=!!v;renderProBadge();}
+function renderProBadge(){
+  const b=document.getElementById('proBadge');if(!b)return;
+  if(isPro){
+    b.innerHTML='👑 Pro';
+    b.style.background='linear-gradient(135deg,#fbbf24,#d97706)';
+    b.title='Storyteller Pro — media features unlocked';
+  }else{
+    b.innerHTML='✨ Upgrade to Pro';
+    b.style.background='linear-gradient(135deg,#fbbf24,#f59e0b)';
+    b.title='Upgrade to Storyteller Pro to add photos, videos & sound';
+  }
+}
+function requirePro(feature,onUpgrade){
+  if(isPro)return true;
+  showProPage(feature,onUpgrade);
+  return false;
+}
+function getImported(){
+  try{
+    const raw=localStorage.getItem(LS_IMPORTED);
+    if(!raw)return [];
+    const arr=JSON.parse(raw);
+    return Array.isArray(arr)?arr:[];
+  }catch(e){return [];}
+}
+function saveImported(arr){try{localStorage.setItem(LS_IMPORTED,JSON.stringify(arr));}catch(e){}}
+function addImported(entry){
+  const arr=getImported();
+  if(arr.some(x=>x.id===entry.id)||library.some(x=>x.id===entry.id))return false;
+  arr.push(entry);saveImported(arr);return true;
+}
+
+function addCommunityToLib(id){
+  const c=getCommunityStories().find(x=>x.id===id);
+  if(!c)return;
+  if(library.some(x=>x.id===id)){toast('Already in your library');switchTab('lib');return;}
+  const copy=JSON.parse(JSON.stringify(c));
+  delete copy._community;copy._owned=true;
+  copy.plays=0;copy.firstTryWins=0;
+  library.push(copy);saveLib();updateLibCount();renderLib();
+  toast('Added to your library!');switchTab('lib');
+}
+function addCommunityToLibFromRead(id){
+  const c=getCommunityStories().find(x=>x.id===id);
+  if(!c)return;
+  if(library.some(x=>x.id===id)){toast('Already in your library');return;}
+  const copy=JSON.parse(JSON.stringify(c));
+  delete copy._community;copy._owned=true;
+  copy.plays=0;copy.firstTryWins=0;
+  library.push(copy);saveLib();updateLibCount();renderLib();
+  toast('Saved to your library!');
+  // switch the current read to the library copy so stats persist
+  const idx=library.length-1;
+  closeRead();
+  readPublished(idx);
+}
+
+// --- Base64url encoding for share codes (browser-safe) ---
+function b64encode(obj){
+  const json=JSON.stringify(obj);
+  // UTF-8 safe
+  const bytes=new TextEncoder().encode(json);
+  let bin='';
+  bytes.forEach(b=>bin+=String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64decode(str){
+  try{
+    str=str.replace(/-/g,'+').replace(/_/g,'/');
+    while(str.length%4)str+='=';
+    const bin=atob(str);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }catch(e){return null;}
+}
+
+function shareStoryId(id){
+  const found=findAnyStory(id);
+  if(!found)return;
+  const s=found.story;
+  const code=b64encode({t:s.title,d:s.description,se:s.series,r:s.rating.score,a:s.author||'',p:s.story.passages});
+  const url=location.origin+location.pathname+'?story='+code;
+  // Copy and show
+  const ta=document.createElement('textarea');ta.value=code;document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');}catch(e){}
+  document.body.removeChild(ta);
+  showModal('🔗 Share this story',
+    `<p>Copy the code below and send it to a friend. They can paste it into the <b>📥 Play a friend's adventure</b> box to play your story.</p>
+     <textarea readonly style="width:100%;height:110px;padding:8px;font-family:monospace;font-size:.8em;border:1px solid #d4c4a8;border-radius:6px">${esc(code)}</textarea>
+     <p style="font-size:.85em;color:#6b4c3b;margin-top:8px">Shareable link (opens directly to the story when Storyteller loads):</p>
+     <input readonly value="${esc(url)}" onclick="this.select()" style="width:100%;padding:6px 8px;font-family:monospace;font-size:.8em;border:1px solid #d4c4a8;border-radius:6px">
+     <p style="margin-top:10px;font-size:.85em;color:#15803d">✓ Code copied to clipboard.</p>
+     <div style="text-align:right;margin-top:12px"><button class="btn btn-gold" onclick="closeModal()">Done</button></div>`);
+}
+
+function showExportCode(){
+  // share page URL (for importing whatever is currently in builder via published export is heavier; offer link to the app)
+  const url=location.origin+location.pathname;
+  showModal('🔗 Share Storyteller',
+    `<p>Send a friend this link so they can open Storyteller and play or build their own adventures:</p>
+     <input readonly value="${esc(url)}" onclick="this.select()" style="width:100%;padding:8px;font-family:monospace;font-size:.9em;border:1px solid #d4c4a8;border-radius:6px">
+     <p style="margin-top:10px;font-size:.85em;color:#6b4c3b">To share a specific story, open it from your library and click the 🔗 button on its card.</p>
+     <div style="text-align:right;margin-top:12px"><button class="btn btn-gold" onclick="closeModal()">Done</button></div>`);
+}
+
+const STRIPE_MONTHLY='https://buy.stripe.com/test_dRm9ATdpQ7tHecheYv97G00';
+const STRIPE_YEARLY='https://buy.stripe.com/test_dRm9ATdpQ7tHecheYv97G00';
+
+function showProPage(feature,onUpgrade){
+  const ctx=feature==='media'?'photos, videos, and sound effects':'extra features';
+  const wasPro=isPro;
+  const html=`<style>.pro-features li{margin:6px 0;list-style:none;padding-left:26px;position:relative}.pro-features li:before{content:'✅';position:absolute;left:0;color:#15803d;font-weight:900}.pro-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.pro-plan{background:#fff;border:2px solid #d4c4a8;border-radius:12px;padding:16px;text-align:center;position:relative;transition:all .15s}.pro-plan:hover{border-color:#b8860b;transform:translateY(-2px);box-shadow:0 8px 20px rgba(184,134,11,.2)}.pro-plan.featured{border-color:#b8860b;background:linear-gradient(135deg,#fff8e7,#fde68a)}.pro-plan.featured:after{content:'⭐ BEST VALUE';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#b8860b;color:#2c1810;font-size:.7em;padding:3px 10px;border-radius:20px;font-weight:900;letter-spacing:.5px}.pro-tier{font-size:.85em;letter-spacing:2px;color:#6b4c3b;text-transform:uppercase}.pro-price{font-size:2em;font-weight:900;color:#8b2500;margin:4px 0}.pro-period{font-size:.8em;color:#6b4c3b}.pro-cta{margin-top:10px;width:100%;padding:10px;border-radius:8px;background:linear-gradient(135deg,#635bff,#4f46e5);color:#fff;border:none;font-weight:900;cursor:pointer;font-family:inherit;font-size:.95em}.pro-cta:hover{filter:brightness(1.1)}.pro-test{font-size:.72em;color:#6b4c3b;margin-top:10px;padding:8px;background:#faf3e3;border-radius:6px}.pro-confirmed{margin-top:12px;text-align:center}</style>
+  <p style="text-align:center;margin-bottom:6px;font-size:1.1em">Unlock the next level of storytelling.</p>
+  <p style="text-align:center;font-size:.9em;color:#6b4c3b;margin-bottom:6px">${feature?`This feature (${ctx}) requires <b>Storyteller Pro</b>.`:''}</p>
+  <ul class="pro-features" style="max-width:420px;margin:14px auto 0;background:#faf3e3;border-radius:10px;padding:14px 18px">
+    <li><b>🖼 Photos</b> in every passage (upload or URL)</li>
+    <li><b>🎬 Videos</b> — YouTube, Vimeo, mp4/webm uploads</li>
+    <li><b>🔊 Sound effects &amp; music</b> that play when readers arrive</li>
+    <li><b>📁 File upload</b> — images/videos/audio attached directly</li>
+    <li><b>Unlimited</b> passages and media (no caps)</li>
+    <li>Supports development of future features ♥</li>
+  </ul>
+  <div class="pro-plans">
+    <div class="pro-plan">
+      <div class="pro-tier">Monthly</div>
+      <div class="pro-price">$4.99</div>
+      <div class="pro-period">per month</div>
+      <button class="pro-cta" onclick="startCheckout('monthly')">💳 Subscribe Monthly</button>
+    </div>
+    <div class="pro-plan featured">
+      <div class="pro-tier">Yearly</div>
+      <div class="pro-price">$39</div>
+      <div class="pro-period">$3.25/mo · billed yearly · save 35%</div>
+      <button class="pro-cta" onclick="startCheckout('yearly')">💳 Subscribe Yearly</button>
+    </div>
+  </div>
+  <div class="pro-test"><b>Test mode:</b> Checkout opens in Stripe's test environment. Use test card <code style="background:#fff;padding:1px 6px;border-radius:4px">4242 4242 4242 4242</code> with any future expiry/CVC.</div>
+  <div class="pro-confirmed"><button class="btn btn-gold" onclick="confirmPro()">I completed my payment →</button></div>
+  ${wasPro?'<p style="text-align:center;margin-top:10px"><button class="btn btn-sec" onclick="downgradePro()" style="font-size:.8em;padding:4px 10px">Cancel subscription</button></p>':''}
+  <div style="text-align:right;margin-top:10px"><button class="btn btn-sec" onclick="closeModal()">Maybe later</button></div>`;
+  showModal('✨ Storyteller Pro',html);
+  if(onUpgrade)window._proUpgradeCb=onUpgrade;
+}
+function startCheckout(plan){
+  const url=plan==='yearly'?STRIPE_YEARLY:STRIPE_MONTHLY;
+  window.open(url,'_blank','noopener');
+  toast('Complete checkout in the new tab, then click "I completed my payment"');
+}
+function confirmPro(){
+  savePro(true);
+  renderList();try{renderEditor();}catch(e){}renderLib();renderProBadge();
+  closeModal();
+  toast('🌟 Welcome to Storyteller Pro! All media features unlocked.');
+  if(window._proUpgradeCb){window._proUpgradeCb();window._proUpgradeCb=null;}
+}
+function downgradePro(){
+  if(!confirm('Cancel your Pro subscription? Photos/videos/sounds you added will stay attached to existing passages, but you won\'t be able to add new media.'))return;
+  savePro(false);
+  renderList();try{renderEditor();}catch(e){}renderLib();renderAgeBadge();
+  closeModal();
+  toast('Subscription cancelled.');
+}
+
+function showModal(title,html){
+  let m=document.getElementById('shareModal');
+  if(!m){
+    m=document.createElement('div');m.id='shareModal';
+    m.style.cssText='position:fixed;inset:0;background:rgba(44,24,16,.6);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px';
+    m.innerHTML=`<div style="background:#f4ecd8;border:2px solid #b8860b;border-radius:12px;max-width:540px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4)"><h2 id="smTitle" style="margin:0 0 12px;color:#8b2500"></h2><div id="smBody"></div></div>`;
+    m.addEventListener('click',e=>{if(e.target===m)closeModal();});
+    document.body.appendChild(m);
+  }
+  m.querySelector('#smTitle').textContent=title;
+  m.querySelector('#smBody').innerHTML=html;
+  m.style.display='flex';
+  m.style.pointerEvents='';
+  m.style.visibility='';
+}
+function closeModal(){const m=document.getElementById('shareModal');if(m)m.style.display='none';}
+
+function importStoryCode(){
+  const input=document.getElementById('importCode');
+  let code=(input.value||'').trim();
+  if(!code){toast('Paste a story code first');input.focus();return;}
+  // support full URL pasted
+  const m=code.match(/[?&]story=([^&]+)/);
+  if(m)code=decodeURIComponent(m[1]);
+  const data=b64decode(code);
+  if(!data||!data.p){toast('Invalid story code — check and try again');return;}
+  const rating=rateFromScore(data.r|2);
+  const id='imp_'+(data.t||'imported').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,24)+'_'+Math.random().toString(36).slice(2,7);
+  // sanitize passages
+  const passages={};
+  Object.keys(data.p).forEach(k=>{
+    const pp=data.p[k];
+    passages[k]={id:k,title:pp.title||k,text:pp.text||'',type:pp.type==='continue'||pp.type==='death'||pp.type==='victory'?pp.type:'normal',
+      choices:(pp.choices||[]).map(c=>({letter:c.letter||'?',text:c.text||'Continue...',target:c.target||'',targetType:c.targetType==='death'||c.targetType==='victory'?c.targetType:'passage'}))};
+  });
+  const entry={id,title:data.t||'Imported Story',description:data.d||'A shared adventure.',series:data.se||'',author:data.a||'A friend',rating,story:{passages},publishedAt:Date.now(),plays:0,firstTryWins:0,_community:true,_imported:true,_owned:false};
+  if(!addImported(entry)){toast('You already have that story.');}
+  updateLibCount();renderLib();
+  input.value='';toast('Story imported! Opening...');
+  switchTab('lib');
+  // Open it via readPublishedId (reads community directly)
+  if(userAge<0){askBirthday(true,function(){readPublishedId(entry.id);});return;}
+  if(!canViewRating(entry.rating.score)){showLockedMsg(entry.title,entry.rating,function(){readPublishedId(entry.id);});return;}
+  if(entry.rating.score===5&&!isAgeVerified()){openAgeGate(entry.title,()=>readPublishedId(entry.id));return;}
+  readPublishedId(entry.id);
+}
+
+function rateFromScore(score){
+  const s=Math.max(1,Math.min(5,score|0));
+  const keys=['st1','st2','st3','st4','st5'];
+  const k=keys[s-1];const base=RATINGS[k];
+  return {score:s,r:{code:base.code,name:base.name,color:base.color},schoolFriendly:s<=2};
+}
+
+// Auto-import from URL ?story=... on load
+(function autoImportFromURL(){
+  try{
+    const m=location.search.match(/[?&]story=([^&]+)/);
+    if(m){
+      const code=decodeURIComponent(m[1]);
+      const data=b64decode(code);
+      if(data&&data.p){
+        // add silently then open
+        const rating=rateFromScore(data.r|2);
+        const id='imp_url_'+(data.t||'story').toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,20)+'_'+Math.random().toString(36).slice(2,6);
+        const passages={};
+        Object.keys(data.p).forEach(k=>{
+          const pp=data.p[k];
+          passages[k]={id:k,title:pp.title||k,text:pp.text||'',type:pp.type==='continue'||pp.type==='death'||pp.type==='victory'?pp.type:'normal',
+            choices:(pp.choices||[]).map(c=>({letter:c.letter||'?',text:c.text||'Continue...',target:c.target||'',targetType:c.targetType==='death'||c.targetType==='victory'?c.targetType:'passage'}))};
+        });
+        const entry={id,title:data.t||'Shared Story',description:data.d||'',series:data.se||'',author:data.a||'Shared link',rating,story:{passages},publishedAt:Date.now(),plays:0,firstTryWins:0,_community:true,_imported:true,_owned:false};
+        if(!getImported().some(x=>x.id===id)&&!library.some(x=>x.id===id)){addImported(entry);updateLibCount();renderLib();}
+        // Open it after init
+        setTimeout(()=>{
+          if(userAge<0){askBirthday(true,function(){readPublishedId(entry.id);});return;}
+          if(!canViewRating(entry.rating.score)){showLockedMsg(entry.title,entry.rating,function(){readPublishedId(entry.id);});return;}
+          if(entry.rating.score===5&&!isAgeVerified()){openAgeGate(entry.title,()=>readPublishedId(entry.id));}
+          else readPublishedId(entry.id);
+        },300);
+      }
+    }
+  }catch(e){console.warn('auto import failed',e);}
+})();
+
+// ====== INIT ======
+// NUCLEAR overlay reset — nothing left blocking clicks after init
+function killAllOverlays(){
+  ['agegate','pubw','overlay','readview','shareModal'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      el.classList.remove('open');
+      el.style.display='none';
+      el.style.visibility='hidden';
+      el.style.pointerEvents='';
+      if(id==='agegate')el._mode=null;
+    }
+  });
+  document.querySelectorAll('*').forEach(el=>{
+    try{
+      const cs=getComputedStyle(el);
+      if(cs.position==='fixed'&&parseInt(cs.zIndex)>=50&&cs.display!=='none'){
+        const r=el.getBoundingClientRect();
+        if(r.width>window.innerWidth*0.8&&r.height>window.innerHeight*0.8){
+          el.style.display='none';
+          el.style.pointerEvents='';
+        }
+      }
+    }catch(e){}
+  });
+}
+function openOverlay(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.style.display='';
+  el.style.visibility='';
+  el.style.pointerEvents='';
+  el.classList.add('open');
+}
+function closeOverlay(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.classList.remove('open');
+  el.style.display='none';
+}
+try{killAllOverlays();}catch(e){console.error('killAllOverlays error',e);}
+window.addEventListener('error',e=>{console.error('Storyteller error:',e.message,e.filename,e.lineno);});
+window.addEventListener('load',()=>{try{killAllOverlays();}catch(e){console.error(e);}setTimeout(()=>{try{killAllOverlays();}catch(e){}},100);setTimeout(()=>{try{killAllOverlays();}catch(e){}},500);setTimeout(()=>{try{killAllOverlays();}catch(e){}},1500);});
+load();loadTitle();loadLib();loadPlayed();loadAge();loadPro();
+fixOwnedStats();
+renderList();renderLib();updateLibCount();renderAgeBadge();
+if(!curPid){const s=findPidByLabel('start');if(s)curPid=s;}
+renderEditor();
+// Focus the writing box once everything's drawn (unless age gate needs to appear first)
+setTimeout(()=>{
+  if(userAge>=0){const t=document.getElementById('ptext');if(t)t.focus();}
+},300);
+// If birthday not set yet, prompt on first visit (after a short delay so the UI is drawn)
+if(userAge<0){setTimeout(()=>{if(userAge<0)askBirthday(false);},250);}
+else{renderAgeBadge();}
+</script>
+</body>
+</html>
