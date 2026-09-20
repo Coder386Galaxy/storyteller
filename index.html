@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Storyteller CYOP — Build Your Own Choose-Your-Own-Path</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2c1810">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CYOP">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Georgia,'Times New Roman',serif;background:#f4ecd8;color:#2c1810;min-height:100vh;line-height:1.6}
@@ -187,6 +195,16 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 .id-big{font-size:2.5em;margin-bottom:8px}
 .agebox .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .agebox .deny-note{background:#2a1515;border-left:3px solid #dc2626;padding:8px 12px;margin-top:10px;font-size:.85em;color:#e8b4b4;border-radius:4px}
+/* AI chat + feedback */
+.fbtn{background:#fff;border:2px solid #d4c4a8;border-radius:20px;padding:5px 16px;font-size:1.05em;transition:all .15s;cursor:pointer}
+.fbtn:hover{border-color:#b8860b;transform:translateY(-1px)}
+.fbtn.on{background:#15803d;border-color:#15803d}
+.fbtn.on.down{background:#991b1b;border-color:#991b1b}
+.fbtn.on:after{content:' 1';font-size:.75em;font-weight:700}
+.chat-bub{max-width:85%;padding:9px 12px;border-radius:12px;font-size:.92em;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+.chat-bub.ai{background:#fff;border:1px solid #d4c4a8;border-bottom-left-radius:4px;align-self:flex-start}
+.chat-bub.me{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
+.chat-bub.err{background:#fde8e8;border:1px solid #991b1b;color:#7f1d1d;align-self:center;font-size:.85em}
 </style>
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#2c1810;color:#f4ecd8;padding:10px 20px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.3);opacity:0;transition:all .25s;z-index:200;font-weight:700}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
@@ -206,6 +224,9 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
       <button class="btn btn-sec" onclick="playStory()">▶ Play</button>
       <button class="btn quick-pub" onclick="startPublish(true)" style="padding:7px 12px;font-size:.85em" title="Quick publish (Ctrl+Enter)">⚡ Publish</button>
       <button class="btn btn-sec" id="ageBadge" onclick="editBirthday()" style="padding:7px 10px;font-size:.8em;display:none" title="Your age setting — click to change">🎂 Set age</button>
+      <button class="btn btn-sec" id="installBtn" onclick="installApp()" style="display:none;padding:7px 12px;font-size:.85em" title="Install Storyteller CYOP as an app">📲 Install</button>
+      <button class="btn" onclick="openChat()" style="background:linear-gradient(135deg,#7c3aed,#2563eb);padding:7px 12px;font-size:.85em" title="Chat with the AI story editor">🤖 AI Editor</button>
+      <button class="btn btn-sec" onclick="openSettings()" style="padding:7px 10px;font-size:.85em" title="Settings">⚙</button>
       <button class="btn" id="proBadge" onclick="showProPage()" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#2c1810;padding:7px 12px;font-size:.85em;display:inline-flex;align-items:center;gap:4px" title="Storyteller Pro">✨ Pro</button>
     </div>
 </header>
@@ -352,6 +373,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-gold" onclick="switchTab('cyoa')">✍️ Edit in builder</button>
         <button class="btn" onclick="playStory()">▶ Test play</button>
+        <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb)" onclick="openChat()">🤖 AI Editor</button>
       </div>
     </div>
   </div>
@@ -2277,7 +2299,7 @@ function readStoryObject(s,addToLib,idx){
     if(!p){body.innerHTML='<h2>Passage not found</h2><button class="btn btn-sec" onclick="closeRead()">Back</button>';return;}
     if(p.type==='death'){
       if(firstOpen && addToLib)playedTracker[sid].died=true;
-      body.innerHTML=`<div class="pend death"><h2>💀 You have died...</h2><p>${esc(p.text||'Your journey ends here.')}</p><button class="btn btn-red" onclick='rReset();rp("${startId}")'>↻ Try Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button></div>`;
+      body.innerHTML=`<div class="pend death"><h2>💀 You have died...</h2><p>${esc(p.text||'Your journey ends here.')}</p><button class="btn btn-red" onclick='rReset();rp("${startId}")'>↻ Try Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${renderFeedbackBar(s.id,'end')}</div>`;
       endPlay();return;
     }
     if(p.type==='victory'){
@@ -2285,7 +2307,7 @@ function readStoryObject(s,addToLib,idx){
         s.firstTryWins=(s.firstTryWins|0)+1;
         saveLib();
       }
-      body.innerHTML=`<div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(p.text||'You win!')}</p><p style="text-align:center;font-size:.85em;color:#6b4c3b;margin-top:10px">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}</div>`;
+      body.innerHTML=`<div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(p.text||'You win!')}</p><p style="text-align:center;font-size:.85em;color:#6b4c3b;margin-top:10px">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}${renderFeedbackBar(s.id,'end')}</div>`;
       endPlay();return;
     }
     const authorLine=s.author?`<span class="rb" style="background:#e7d8b8;color:#4a2c1a">✍️ ${esc(s.author)}</span>`:'';
@@ -2293,7 +2315,7 @@ function readStoryObject(s,addToLib,idx){
     const shareBtn=`<button class="btn btn-sec" style="padding:4px 10px;font-size:.85em;margin-left:6px" onclick="shareStoryId('${s.id}')">🔗 Share</button>`;
     let h=`<div style="margin-bottom:8px;display:flex;align-items:center;flex-wrap:wrap">
       <button class="btn btn-sec" style="padding:4px 10px;font-size:.85em" onclick="closeRead()">← Back to Library</button>${saveBtn}${shareBtn}
-    </div><h1 style="border-bottom:2px solid #b8860b;padding-bottom:8px;margin-bottom:16px">${esc(s.title)}</h1><div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="rb ${s.rating.r.color}" style="font-size:.85em">${s.rating.r.code} — ${s.rating.r.name}</span>${s.rating.schoolFriendly?'<span class="rb school" style="font-size:.85em">🏫 School-Friendly</span>':''}${authorLine}${s.series?'<span style="font-size:.8em;color:#6b4c3b">📚 '+esc(s.series)+'</span>':''}</div><div style="font-style:italic;color:#6b4c3b;margin-bottom:14px;font-size:.9em">${esc(s.description||'')}</div>${renderMediaHTML(p)}<div class="ptxt">${esc(p.text)}</div>`;
+    </div><h1 style="border-bottom:2px solid #b8860b;padding-bottom:8px;margin-bottom:16px">${esc(s.title)}</h1><div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="rb ${s.rating.r.color}" style="font-size:.85em">${s.rating.r.code} — ${s.rating.r.name}</span>${s.rating.schoolFriendly?'<span class="rb school" style="font-size:.85em">🏫 School-Friendly</span>':''}${authorLine}${s.series?'<span style="font-size:.8em;color:#6b4c3b">📚 '+esc(s.series)+'</span>':''}</div><div style="font-style:italic;color:#6b4c3b;margin-bottom:14px;font-size:.9em">${esc(s.description||'')}</div>${renderFeedbackBar(s.id)}${renderMediaHTML(p)}<div class="ptxt">${esc(p.text)}</div>`;
     if(p.type==='continue'){
       // single Continue button for dialog/narration
       const tid=p.contTarget?findTgt({target:p.contTarget,targetType:'passage'}):null;
@@ -2345,12 +2367,12 @@ function readStoryObject(s,addToLib,idx){
   window.doPubEnd=(type,startId)=>{
     if(type==='death'){
       if(firstOpen&&addToLib)playedTracker[sid].died=true;
-      body.innerHTML=`<div class="pend death"><h2>💀 You have died.</h2><p>Your journey ends here.</p><button class="btn btn-red" onclick='rReset();rp("${startId}")'>↻ Try Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button></div>`;
+      body.innerHTML=`<div class="pend death"><h2>💀 You have died.</h2><p>Your journey ends here.</p><button class="btn btn-red" onclick='rReset();rp("${startId}")'>↻ Try Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${renderFeedbackBar(s.id,'end')}</div>`;
     }else{
       if(firstOpen&&addToLib&&!playedTracker[sid].died&&!playedTracker[sid].finished){
         s.firstTryWins=(s.firstTryWins|0)+1;saveLib();
       }
-      body.innerHTML=`<div class="pend victory"><h2>🏆 The End</h2><p style="text-align:center;font-size:.85em;color:#6b4c3b">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}</div>`;
+      body.innerHTML=`<div class="pend victory"><h2>🏆 The End</h2><p style="text-align:center;font-size:.85em;color:#6b4c3b">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}${renderFeedbackBar(s.id,'end')}</div>`;
     }
     endPlay();
   };
@@ -2554,6 +2576,8 @@ function doSmartConvert(text){
   document.getElementById('convResultText').textContent=msg;
   renderList();renderEditor();
   toast('Story finalized \u2014 ready to play!');
+  if(getOAI().key){openChat();}
+  else{toast('Tip: add your OpenAI key in \u2699 Settings to chat-edit this story \ud83e\udd16');}
 }
 
 function loadSampleConv(){
@@ -2887,7 +2911,234 @@ function closeOverlay(id){
 try{killAllOverlays();}catch(e){console.error('killAllOverlays error',e);}
 window.addEventListener('error',e=>{console.error('Storyteller error:',e.message,e.filename,e.lineno);});
 window.addEventListener('load',()=>{try{killAllOverlays();}catch(e){console.error(e);}setTimeout(()=>{try{killAllOverlays();}catch(e){}},100);setTimeout(()=>{try{killAllOverlays();}catch(e){}},500);setTimeout(()=>{try{killAllOverlays();}catch(e){}},1500);});
-load();loadTitle();loadLib();loadPlayed();loadAge();loadPro();checkPaymentReturn();
+
+// ================= PWA INSTALL =================
+let _deferredInstall=null;
+function initPWA(){
+  if(location.protocol==='file:')return;
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();_deferredInstall=e;
+    const b=document.getElementById('installBtn');if(b)b.style.display='';
+  });
+  window.addEventListener('appinstalled',()=>{_deferredInstall=null;const b=document.getElementById('installBtn');if(b)b.style.display='none';toast('📲 Storyteller CYOP installed!');});
+  if('serviceWorker' in navigator){try{navigator.serviceWorker.register('sw.js').catch(()=>{});}catch(e){}}
+}
+function installApp(){
+  if(!_deferredInstall){toast('Use your browser menu \u2192 "Install app" / "Add to Home Screen".');return;}
+  _deferredInstall.prompt();
+  _deferredInstall.userChoice.then(()=>{_deferredInstall=null;const b=document.getElementById('installBtn');if(b)b.style.display='none';}).catch(()=>{});
+}
+
+// ================= SETTINGS (OpenAI key) =================
+const LS_OAI='sf_openai';
+function getOAI(){try{return JSON.parse(localStorage.getItem(LS_OAI))||{};}catch(e){return {};}}
+function openSettings(msg){
+  const cfg=getOAI();
+  showModal('\u2699 Settings',`
+   ${msg?`<p style="color:#8b2500;margin-bottom:8px;font-size:.9em">${esc(msg)}</p>`:''}
+   <label style="display:block;font-weight:700;margin-bottom:4px">OpenAI API key</label>
+   <input type="password" id="oaiKey" value="${esc(cfg.key||'')}" placeholder="sk-..." style="width:100%;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:9px" autocomplete="off">
+   <label style="display:block;font-weight:700;margin:10px 0 4px">Model</label>
+   <input type="text" id="oaiModel" value="${esc(cfg.model||'gpt-5.4')}" style="width:100%;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:9px" autocomplete="off">
+   <p style="font-size:.8em;color:#6b4c3b;margin-top:10px">Your key is stored only in this browser and sent only to api.openai.com. Note: the in-chat preview sandbox blocks outside APIs \u2014 use the downloaded file or real hosting for the AI Editor.</p>
+   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+     ${cfg.key?'<button class="btn btn-red" onclick="removeOAI()">Remove key</button>':''}
+     <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+     <button class="btn" onclick="saveOAISettings()">Save</button>
+   </div>`);
+}
+function saveOAISettings(){
+  const k=document.getElementById('oaiKey').value.trim();
+  const m=document.getElementById('oaiModel').value.trim()||'gpt-5.4';
+  try{localStorage.setItem(LS_OAI,JSON.stringify({key:k,model:m}));}catch(e){}
+  closeModal();toast(k?'Settings saved \u2014 AI Editor ready \ud83e\udd16':'Saved (no API key set)');
+}
+function removeOAI(){try{localStorage.removeItem(LS_OAI);}catch(e){}closeModal();toast('API key removed');}
+
+// ================= AI STORY EDITOR CHAT (GPT-5.4) =================
+let _chatMsgs=[]; // API history {role,content}
+let _chatBusy=false;
+function openChat(){
+  const cfg=getOAI();
+  if(!cfg.key){openSettings('The AI Editor needs your OpenAI API key.');return;}
+  let p=document.getElementById('aiChat');
+  if(p){p.style.display='flex';return;}
+  p=document.createElement('div');p.id='aiChat';
+  p.style.cssText='position:fixed;right:12px;bottom:12px;width:min(400px,calc(100vw - 24px));height:min(580px,calc(100vh - 24px));background:#f4ecd8;border:3px solid #b8860b;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.45);z-index:1300;display:flex;flex-direction:column;overflow:hidden';
+  p.innerHTML=`<div style="background:linear-gradient(135deg,#2c1810,#4a2c1a);color:#f4ecd8;padding:10px 14px;display:flex;align-items:center;gap:8px">
+    <span style="font-size:1.2em">\ud83e\udd16</span><b style="flex:1">AI Story Editor</b>
+    <button class="btn btn-sec" style="padding:2px 9px;font-size:.8em" onclick="clearChat()" title="Clear conversation">\ud83d\udddd</button>
+    <button class="btn btn-sec" style="padding:2px 9px;font-size:.8em" onclick="closeChat()">\u2715</button>
+  </div>
+  <div id="chatMsgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
+  <div style="padding:10px;border-top:2px solid #d4c4a8;display:flex;gap:6px;background:#faf3e3">
+    <input id="chatIn" placeholder='e.g. "add a scene where you find a key"...' style="flex:1;background:#fff;border:1px solid #d4c4a8;border-radius:8px;padding:9px 11px" onkeydown="if(event.key==='Enter')sendChat()">
+    <button class="btn" onclick="sendChat()" id="chatSend">\u27a4</button>
+  </div>`;
+  document.body.appendChild(p);
+  if(!_chatMsgs.length)addBubble('ai','Hi! I can edit your story. Try:\u2022 "add a scene where you find a hidden key"\u2022 "make the ending a victory"\u2022 "delete the scene called <label>"\u2022 "add a scary choice to <scene>"\nWhat should we change?');
+}
+function closeChat(){const p=document.getElementById('aiChat');if(p)p.style.display='none';}
+function clearChat(){_chatMsgs=[];const m=document.getElementById('chatMsgs');if(m)m.innerHTML='';addBubble('ai','Fresh start \u2014 what should we change?');}
+function addBubble(role,text){
+  const m=document.getElementById('chatMsgs');if(!m)return;
+  const d=document.createElement('div');d.className='chat-bub '+role;d.textContent=text;
+  m.appendChild(d);m.scrollTop=m.scrollHeight;
+}
+function storyContext(){
+  const list=Object.values(cyoa.passages).map(p=>({label:p.title,type:p.type,text:(p.text||'').slice(0,280),contTarget:p.contTarget||undefined,choices:(p.choices&&p.choices.length)?p.choices.map(c=>({letter:c.letter,text:c.text,target:c.target,targetType:c.targetType})):undefined}));
+  return JSON.stringify({storyTitle:(document.getElementById('storyTitle')||{}).value||'(untitled)',passages:list});
+}
+function sysPrompt(){
+  return 'You are the AI story editor inside Storyteller CYOP, a choose-your-own-path builder. The user will ask for changes to their story. Current story JSON:\n'+storyContext()+
+  '\nRespond ONLY with a JSON object: {"reply":"<short friendly confirmation with what you changed>","actions":[...]}. Available actions (reference passages by their label):\n'+
+  '{"action":"add_passage","title":"label","text":"scene text","type":"normal|continue|death|victory","contTarget":"label of next scene (for continue type)"}\n'+
+  '{"action":"update_passage","passage":"label","title":"new label (optional)","text":"new text (optional)","type":"new type (optional)"}\n'+
+  '{"action":"delete_passage","passage":"label"}\n'+
+  '{"action":"add_choice","passage":"label","text":"choice text","target":"target passage label or empty","targetType":"passage|death|victory"}\n'+
+  '{"action":"update_choice","passage":"label","index":0,"text":"new text","target":"new target","targetType":"passage|death|victory"}\n'+
+  '{"action":"delete_choice","passage":"label","index":0}\n'+
+  '{"action":"set_cont_target","passage":"label","target":"next scene label"}\n'+
+  '{"action":"set_story_title","title":"new title"}\n'+
+  'Rules: keep labels short and unique. New "continue" passages should set contTarget to an existing label so the story flows. Choices belong on "normal" passages. Never invent actions outside this list.';
+}
+async function gptEdit(userText){
+  const cfg=getOAI();
+  const history=_chatMsgs.slice(-10);
+  const messages=[{role:'system',content:sysPrompt()},...history,{role:'user',content:userText}];
+  let r;
+  try{
+    r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+cfg.key},
+      body:JSON.stringify({model:cfg.model||'gpt-5.4',messages,response_format:{type:'json_object'}})});
+  }catch(e){throw new Error('NET');
+  }
+  if(!r.ok){const t=await r.text();throw new Error('API '+r.status+': '+t.slice(0,200));}
+  const j=await r.json();
+  let txt=((j.choices||[])[0]||{}).message||{};
+  txt=(typeof txt==='string')?txt:(txt.content||'');
+  txt=String(txt).trim().replace(/^```(?:json)?/i,'').replace(/```$/,'').trim();
+  let obj;try{obj=JSON.parse(txt);}catch(e){throw new Error('The AI reply was not valid JSON.');}
+  return obj;
+}
+function uniqLabel(base){
+  let t=(base||'new scene').trim().slice(0,40)||'new scene';let n=2;
+  while(findPidByLabel(t))t=base+' '+(n++);
+  return t;
+}
+function applyActions(actions){
+  let n=0;
+  (actions||[]).forEach(a=>{
+    try{
+      const lbl=a.passage||a.id||'';
+      const pid=lbl?findPidByLabel(lbl):curPid;
+      switch(a.action){
+        case 'set_story_title':{
+          const t=document.getElementById('storyTitle');if(t&&a.title){t.value=a.title;saveTitle();n++;}break;}
+        case 'add_passage':{
+          const id=uid();const title=uniqLabel(a.title);
+          const type=['normal','continue','death','victory'].includes(a.type)?a.type:'continue';
+          const p={id,title,text:a.text||'',type,choices:[]};
+          if(type==='continue'&&a.contTarget)p.contTarget=a.contTarget;
+          cyoa.passages[id]=p;n++;break;}
+        case 'delete_passage':{
+          if(pid){delete cyoa.passages[pid];n++;}break;}
+        case 'update_passage':{
+          if(!pid)break;const p=cyoa.passages[pid];
+          if(a.title&&a.title!==p.title){
+            const old=p.title;p.title=uniqLabel(a.title);
+            for(const qid in cyoa.passages){const q=cyoa.passages[qid];
+              (q.choices||[]).forEach(c=>{if(slug(c.target)===slug(old))c.target=p.title;});
+              if(slug(q.contTarget)===slug(old))q.contTarget=p.title;}
+          }
+          if(a.text!=null)p.text=a.text;
+          if(['normal','continue','death','victory'].includes(a.type)){p.type=a.type;if(a.type!=='normal'&&a.type!=='continue')p.choices=[];}
+          n++;break;}
+        case 'set_cont_target':{
+          if(pid&&a.target){const p=cyoa.passages[pid];p.type='continue';p.contTarget=a.target;delete p.choices;n++;}break;}
+        case 'add_choice':{
+          if(!pid)break;const p=cyoa.passages[pid];p.type='normal';delete p.contTarget;
+          const letters='ABCDEFGHIJ';
+          p.choices.push({letter:letters[p.choices.length]||'?',text:a.text||'',target:a.target||'',targetType:a.targetType||'passage'});n++;break;}
+        case 'update_choice':{
+          if(!pid)break;const c=(cyoa.passages[pid].choices||[])[a.index|0];if(!c)break;
+          if(a.text!=null)c.text=a.text;if(a.target!=null)c.target=a.target;
+          if(a.targetType)c.targetType=a.targetType;n++;break;}
+        case 'delete_choice':{
+          if(!pid)break;(cyoa.passages[pid].choices||[]).splice(a.index|0,1);n++;break;}
+      }
+    }catch(e){}
+  });
+  if(n){save();renderList();try{renderEditor();}catch(e){}}
+  return n;
+}
+async function sendChat(){
+  if(_chatBusy)return;
+  const inp=document.getElementById('chatIn');if(!inp)return;
+  const text=inp.value.trim();if(!text)return;
+  const cfg=getOAI();if(!cfg.key){openSettings('Add your OpenAI API key first.');return;}
+  inp.value='';addBubble('me',text);_chatBusy=true;
+  const sb=document.getElementById('chatSend');if(sb)sb.disabled=true;
+  const tp=document.createElement('div');tp.className='chat-bub ai';tp.textContent='\u2026typing';document.getElementById('chatMsgs').appendChild(tp);
+  try{
+    const obj=await gptEdit(text);
+    tp.remove();
+    const n=applyActions(obj.actions);
+    const reply=(obj.reply||'Done.')+(n?` (${n} edit${n===1?'':'s'} applied \u2014 saved to your story.)`:' (no changes were needed.)');
+    addBubble('ai',reply);
+    _chatMsgs.push({role:'user',content:text},{role:'assistant',content:reply});
+  }catch(e){
+    tp.remove();
+    addBubble('err', e.message==='NET'
+      ?'Couldn\u2019t reach api.openai.com. The in-chat preview blocks outside network \u2014 download the file or host the app to use the AI Editor.'
+      :'AI Editor error: '+e.message);
+  }finally{
+    _chatBusy=false;const sb2=document.getElementById('chatSend');if(sb2)sb2.disabled=false;
+  }
+}
+
+// ================= THUMBS UP/DOWN + COMMENTS =================
+const LS_FB='sf_feedback';
+function getFBAll(){try{return JSON.parse(localStorage.getItem(LS_FB))||{};}catch(e){return {};}}
+function fbFor(id){const all=getFBAll();return all[id]||{vote:null,comments:[]};}
+function saveFB(id,f){const all=getFBAll();all[id]=f;try{localStorage.setItem(LS_FB,JSON.stringify(all));}catch(e){}}
+function voteFB(id,v){
+  const f=fbFor(id);f.vote=(f.vote===v)?null:v;saveFB(id,f);refreshFB(id);
+  toast(f.vote==='up'?'\ud83d\udc4d Thanks for the thumbs up!':f.vote==='down'?'\ud83d\udc4e Noted \u2014 thanks for the feedback.':'Vote removed.');
+}
+function addCommentFB(id){
+  const ni=document.getElementById('cmtname_'+id),ti=document.getElementById('cmt_'+id);
+  if(!ti)return;const text=ti.value.trim();if(!text){ti.focus();return;}
+  const name=ni?ni.value.trim().slice(0,24):'';
+  const f=fbFor(id);f.comments.push({name:name||'Reader',text:text.slice(0,400),ts:Date.now()});saveFB(id,f);
+  refreshFB(id);toast('\ud83d\udcac Comment posted!');
+}
+function renderFeedbackBar(sid,where){
+  const f=fbFor(sid);
+  return `<div class="fbwrap fbw-${esc(sid)}" data-where="${where||''}" style="margin-top:12px;background:#fff8e7;border:1px dashed #b8860b;border-radius:10px;padding:12px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center">
+      <span style="font-size:.85em;color:#6b4c3b">${where==='end'?'Did you enjoy this adventure?':'Rate this adventure:'}</span>
+      <button class="fbtn ${f.vote==='up'?'on':''}" onclick="voteFB('${esc(sid)}','up')" title="Thumbs up">\ud83d\udc4d</button>
+      <button class="fbtn ${f.vote==='down'?'on down':''}" onclick="voteFB('${esc(sid)}','down')" title="Thumbs down">\ud83d\udc4e</button>
+      <span style="font-size:.85em;color:#6b4c3b">\ud83d\udcac ${f.comments.length} comment${f.comments.length===1?'':'s'}</span>
+    </div>
+    <div style="margin-top:10px">${f.comments.map(c=>`<div style="background:#fff;border:1px solid #d4c4a8;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:.9em"><b>${esc(c.name)}</b> <span style="color:#6b4c3b;font-size:.8em">${new Date(c.ts).toLocaleDateString()}</span><br>${esc(c.text)}</div>`).join('')||'<div style="font-size:.85em;color:#6b4c3b;text-align:center">No comments yet \u2014 be the first!</div>'}</div>
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input type="text" id="cmtname_${esc(sid)}" placeholder="Name" style="width:100px;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:7px 9px;font-size:.9em">
+      <input type="text" id="cmt_${esc(sid)}" placeholder="Leave a comment..." style="flex:1;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:7px 9px;font-size:.9em" onkeydown="if(event.key==='Enter')addCommentFB('${esc(sid)}')">
+      <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="addCommentFB('${esc(sid)}')">Post</button>
+    </div>
+  </div>`;
+}
+function refreshFB(sid){
+  document.querySelectorAll('.fbw-'+sid).forEach(el=>{
+    const tmp=document.createElement('div');
+    tmp.innerHTML=renderFeedbackBar(sid,el.getAttribute('data-where')||'');
+    el.replaceWith(tmp.firstElementChild);
+  });
+}
+
+load();loadTitle();loadLib();loadPlayed();loadAge();loadPro();checkPaymentReturn();initPWA();
 fixOwnedStats();
 renderList();renderLib();updateLibCount();renderAgeBadge();
 if(!curPid){const s=findPidByLabel('start');if(s)curPid=s;}
