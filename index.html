@@ -1250,13 +1250,10 @@ function showPassage(pid){
   }else if(p.choices.length===0){
     html+=`<div class="pend"><p style="color:#991b1b;text-align:center">— The story ends here (no choices) —</p><button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
   }else{
+    // Normal passage: only the user-written choices. Never add a synthetic Continue button.
     p.choices.forEach((c,i)=>{
       html+=`<button class="pchoice" onclick="choose(${JSON.stringify(pid)},${i})"><span class="l">${c.letter}</span>${esc(c.text||'Continue...')}</button>`;
     });
-    const contIdx=pickContinueIdx(p,_playPrev);
-    if(contIdx>=0){
-      html+=`<button class="pchoice" style="border-left-color:#b8860b;background:#fff8e7;margin-top:12px" onclick="choose(${JSON.stringify(pid)},${contIdx})"><span class="l" style="background:#b8860b">➡</span><em>Continue to next page</em></button>`;
-    }
   }
   box.innerHTML=html;
   box.scrollTop=0;
@@ -1346,8 +1343,10 @@ function saveDOB(dob){
   try{localStorage.setItem(LS_DOB,dob);}catch(e){}
   userAge=calcAge(dob);
 }
-function canViewRating(score){
-  if(userAge<0)return false; // need to ask first
+function canViewRating(score,story){
+  if(userAge<0)return false;
+  // You can always view, play, and publish YOUR OWN stories regardless of rating
+  if(story&&story._owned)return true;
   const min=MIN_AGE[score]||0;
   return userAge>=min;
 }
@@ -1363,15 +1362,18 @@ function showLockedMsg(title,rating,onDone){
   const min=MIN_AGE[rating.score]||0;
   const ageLine=userAge<0?'We have not asked your age yet.':'Based on your birthdate you are <b>'+userAge+'</b>.';
   window.__lockRetry=onDone||null;
+  // If age is already locked, don't offer a "change my birthday" button that won't work.
+  const canChange=userAge<0;
+  const retryBtn=canChange?'<button class="btn btn-gold" onclick="closeModal();askBirthday(true,function(){try{if(window.__lockRetry)window.__lockRetry();}catch(e){}window.__lockRetry=null;})">✏️ Set my birthday & retry</button>':'';
   showModal('🔒 Age-Restricted',
     `<div style="text-align:center">
        <div style="font-size:3em;margin-bottom:8px">🔒</div>
        <h3 style="color:#991b1b;border:none;margin-bottom:8px">"${esc(title)}" is ${rating.r.code} — ${rating.r.name}</h3>
        <p>This story is for ages <b>${min}+</b>. ${ageLine}</p>
-       ${userAge>=0?'<p style="font-size:.85em;color:#6b4c3b;margin-top:10px">Birthdate on file: <b>'+esc(localStorage.getItem(LS_DOB)||'')+'</b>.</p>':''}
+       ${userAge>=0?'<p style="font-size:.85em;color:#6b4c3b;margin-top:10px">Birthdate is locked once set. To change it, clear this site\u2019s data in your browser.</p>':''}
        <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
          <button class="btn btn-sec" onclick="closeModal();switchTab(\'lib\')">← Back</button>
-         <button class="btn btn-gold" onclick="closeModal();askBirthday(true,function(){try{if(window.__lockRetry)window.__lockRetry();}catch(e){}window.__lockRetry=null;})">✏️ Change my birthday & retry</button>
+         ${retryBtn}
        </div>
      </div>`);
 }
@@ -1436,10 +1438,12 @@ function renderAgeBadge(){
   if(!el)return;
   if(userAge<0){el.textContent='🎂 Set age';el.style.display='';return;}
   el.textContent='👤 Age '+userAge;
-  el.style.display='';
-  el.title='Click to change your birthday';
+  el.style.display='none'; // age locked — don't show an editable badge after first set
+  el.title='Age is locked after being set.';
 }
 function editBirthday(){
+  // Age cannot be changed after first set (prevents kids from bumping their age to bypass content filters)
+  if(userAge>=0){toast('Age is locked once set. To change it, clear this site\u2019s data in your browser.');return;}
   askBirthday(true);
 }
 function openAgeGate(title,onApproved){
@@ -1904,25 +1908,10 @@ function pubAnalyze(){
   openPub('step2');
 }
 function pubShowRating(){
-  // Age-gate publish if story is rated above user's age
-  if(userAge>=0&&!canViewRating(pubData.rating.score)){
-    const min=MIN_AGE[pubData.rating.score]||0;
-    const box=document.getElementById('pubbox');
-    box.innerHTML=`
-      <button class="pub-x" onclick="closePub()">✕</button>
-      <h2 style="color:#991b1b">🔒 Age-Restricted</h2>
-      <p class="pubsub">Your story was rated <b>${pubData.rating.r.code} — ${pubData.rating.r.name} (${min}+)</b>, but you are ${userAge}.</p>
-      <p style="text-align:center;color:#6b4c3b">You cannot publish a story rated above your own age. Edit the content to make it milder, or correct your birthday.</p>
-      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px">
-        <button class="btn btn-sec" onclick="openPub('step1')">← Edit story</button>
-        <button class="btn btn-gold" onclick="closePub();askBirthday(true,function(){startPublish(true);})">✏️ Change birthday & retry</button>
-        <button class="btn btn-sec" onclick="closePub()">Cancel</button>
-      </div>`;
-    return;
-  }
-  // ST-5 gate at publish time too — ID verification required to publish mature
+  // Authors can always publish their own stories regardless of age rating — age
+  // gates protect young readers from others' mature content, they don't censor you.
+  // ST-5 mature also requires 18+ ID verification before publishing (it's being distributed).
   if(pubData.rating.score===5&&!isAgeVerified()){
-    // Show interstitial saying rating is mature, require ID before saving
     const box=document.getElementById('pubbox');
     box.innerHTML=`
       <button class="pub-x" onclick="closePub()">✕</button>
@@ -1935,9 +1924,9 @@ function pubShowRating(){
         <div class="rating-desc">${pubData.rating.r.desc}</div>
         <div class="rating-reason">${pubData.rating.reasons.join(' ')}</div>
       </div>
-      <p style="text-align:center;font-size:.9em;color:#6b4c3b;margin:14px 0">Readers will also need to verify age with an ID scan before opening this story.</p>
+      <p style="text-align:center;font-size:.9em;color:#6b4c3b;margin:14px 0">Readers will also need to verify age before opening this story.</p>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-        <button class="btn" style="background:linear-gradient(135deg,#dc2626,#991b1b)" onclick="pubAgeVerify()">🪪 Verify My Age to Publish</button>
+        <button class="btn" style="background:linear-gradient(135deg,#dc2626,#991b1b)" onclick="pubAgeVerify()">🪪 Verify I'm 18+ &amp; Publish</button>
         <button class="btn btn-sec" onclick="openPub('step1')">← Edit details</button>
         <button class="btn btn-sec" onclick="closePub()">Cancel</button>
       </div>`;
@@ -2076,7 +2065,7 @@ function libCard(s){
   const wins=s.firstTryWins|0;
   const pct=plays>0?Math.round((wins/plays)*100):0;
   const pctCls=pct>=50?'':pct>=25?'warn':'bad';
-  const locked=!canViewRating(s.rating.score);
+  const locked=!canViewRating(s.rating.score,s);
   const min=MIN_AGE[s.rating.score]||0;
   const ageBadge=userAge>=0?' (You are '+userAge+')':'';
   const isPrivate=!!s._private;
@@ -2141,7 +2130,7 @@ function readPublishedId(id){
   const found=findAnyStory(id);
   if(!found)return;
   // Gate by rating vs age
-  if(!canViewRating(found.story.rating.score)){showLockedMsg(found.story.title,found.story.rating,function(){readPublishedId(id);});return;}
+  if(!canViewRating(found.story.rating.score,found.story)){showLockedMsg(found.story.title,found.story.rating,function(){readPublishedId(id);});return;}
   if(found.inLib){readPublished(found.index);return;}
   // community story: read directly without adding to personal library
   readStoryObject(found.story,/*addToLib*/false);
@@ -2161,9 +2150,9 @@ function readStoryObject(s,addToLib,idx){
   // First ensure birthday is known
   if(userAge<0){askBirthday(true,function(){readStoryObject(s,addToLib,idx);});return;}
   // Age-tier gate
-  if(!canViewRating(s.rating.score)){showLockedMsg(s.title,s.rating,function(){readStoryObject(s,addToLib,idx);});return;}
-  // ST-5 mature also needs ID scan (18+)
-  if(s.rating.score===5&&!isAgeVerified()){
+  if(!canViewRating(s.rating.score,s)){showLockedMsg(s.title,s.rating,function(){readStoryObject(s,addToLib,idx);});return;}
+  // ST-5 mature also needs ID scan (18+) for OTHER people's stories; your own skip the scan
+  if(s.rating.score===5&&!isAgeVerified()&&!s._owned){
     openAgeGate(s.title,()=>readStoryObject(s,addToLib,idx));
     return;
   }
@@ -2236,29 +2225,24 @@ function readStoryObject(s,addToLib,idx){
         h+='<p style="text-align:center;color:#991b1b">— End of path —</p>';
         endPlay();
       }
-    }else if(p.choices.length===0){
-      h+='<p style="text-align:center;color:#991b1b">— The end —</p>';
-      endPlay();
-    }
-    const _cidxCi=pickContinueIdxR(p);
-    let contFn='';
-    p.choices.forEach((c,ci)=>{
-      const tgtType=c.targetType;
-      let goFn='';
-      if(tgtType==='death'){goFn=`_rPrev='${pid}';doPubEnd('death','${startId}')`;}
-      else if(tgtType==='victory'){goFn=`_rPrev='${pid}';doPubEnd('victory','${startId}')`;}
-      else{
-        const tid=findTgt(c);
-        if(tid){
-          const _wasPrev=_rPrev;
-          goFn=`_rPrev='${pid}';rp('${tid}')`;
-          if(ci===_cidxCi)contFn=goFn;
-        }else goFn="alert('That path is not written yet.')";
-      }
-      h+=`<button class="pchoice" onclick="${goFn}"><span class="l">${c.letter}</span>${esc(c.text||'Continue...')}</button>`;
-    });
-    if(contFn){
-      h+=`<button class="pchoice" style="border-left-color:#b8860b;background:#fff8e7;margin-top:12px" onclick="_rPrev='${pid}';${contFn}"><span class="l" style="background:#b8860b">➡</span><em>Continue to next page</em></button>`;
+  }else if(p.choices.length===0){
+    h+='<p style="text-align:center;color:#991b1b">— The end —</p>';
+    endPlay();
+    }else{
+      // Normal passage: render each choice as a button. NO extra "Continue" button —
+      // the user explicitly wrote these choices, they must pick one.
+      p.choices.forEach((c,ci)=>{
+        const tgtType=c.targetType;
+        let goFn='';
+        if(tgtType==='death'){goFn=`_rPrev='${pid}';doPubEnd('death','${startId}')`;}
+        else if(tgtType==='victory'){goFn=`_rPrev='${pid}';doPubEnd('victory','${startId}')`;}
+        else{
+          const tid=findTgt(c);
+          if(tid){goFn=`_rPrev='${pid}';rp('${tid}')`;}
+          else goFn="alert('That path is not written yet.')";
+        }
+        h+=`<button class="pchoice" onclick="${goFn}"><span class="l">${c.letter}</span>${esc(c.text||'Continue...')}</button>`;
+      });
     }
     body.innerHTML=h;window.scrollTo(0,0);
   }
@@ -2370,7 +2354,25 @@ function doSmartConvert(text){
   usedTitles.add(slug('victory'));
 
   const mainIds=[];
+  // Merge adjacent short blocks (under ~280 chars) together so narration flows
+  // in bigger chunks instead of forcing a button after every short paragraph.
+  const merged=[];
   blocks.forEach((b,i)=>{
+    const body=b.textLines.join(' ');
+    const len=body.trim().length;
+    const prev=merged.length?merged[merged.length-1]:null;
+    const prevLen=prev?prev.textLines.join(' ').length:0;
+    const prevHasChoices=prev&&prev.choices&&prev.choices.length>0;
+    // Merge into previous if: previous exists, previous has no choices, previous is shortish,
+    // and current has no choices (choices mark a decision point we mustn't merge past)
+    if(prev && !prevHasChoices && !b.choices.length && (prevLen<350||len<180) && prevLen+len<700){
+      b.textLines.forEach(l=>prev.textLines.push(l));
+      if(b.choices)b.choices.forEach(c=>prev.choices.push(c));
+    }else{
+      merged.push(b);
+    }
+  });
+  merged.forEach((b,i)=>{
     const id=uid();
     const title=i===0?'start':uniqTitle(titleFromText(b.textLines.join(' '),i));
     const body=b.textLines.join('\n\n');
@@ -2428,28 +2430,39 @@ function doSmartConvert(text){
     'Stop and look around','Take a risk','Call out','Wait and listen','Turn back for a moment',
     'Press on despite the feeling','Examine more closely','Take a different approach'
   ];
+  // Plant light AI branches sparingly: roughly every 4th-5th narration scene.
+  // Most scenes stay as pure Continue → so readers don't get a choice every paragraph.
+  let nextBranchAt=2; // first optional branch after scene 2
   for(let i=0;i<mainIds.length-1;i++){
     const p=passages[mainIds[i]];
     if(p.type!=='continue')continue;
-    if(i%3!==1)continue;
+    if(i!==nextBranchAt)continue;
     p.type='normal';delete p.contTarget;
     const choices=[];
     const nextTitle=passages[mainIds[i+1]].title;
     choices.push({letter:'A',text:'Keep going',target:nextTitle,targetType:'passage'});
-    const detourId=uid();
-    const detourTitle=uniqTitle('another way');
-    const detourText=pickR([
-      'You take a brief detour. The world feels different for a moment, then the path returns to familiar ground.',
-      'Curiosity pulls you aside for a moment. What you find there stays with you, but the way forward remains.',
-      'A small decision shifts the scene. Nothing irreversible \u2014 just a different rhythm for a while.'
-    ],mainIds[i]);
-    passages[detourId]={id:detourId,title:detourTitle,text:detourText,type:'continue',choices:[],contTarget:nextTitle};
-    choices.push({letter:'B',text:aiOptionPool[(i+3)%aiOptionPool.length],target:detourTitle,targetType:'passage'});
-    if(i>1 && (i%5===3)){
-      choices.push({letter:'C',text:'Take the riskier option',target:passages[deathId].title,targetType:'death'});
+    // Only add a detour branch if there's meaningful story left (don't branch the last scene)
+    if(i<mainIds.length-2){
+      const detourId=uid();
+      const detourTitle=uniqTitle('another way');
+      const detourText=pickR([
+        'You take a brief detour. The world feels different for a moment, then the path returns to familiar ground.',
+        'Curiosity pulls you aside for a moment. What you find there stays with you, but the way forward remains.',
+        'A small decision shifts the scene. Nothing irreversible \u2014 just a different rhythm for a while.'
+      ],mainIds[i]);
+      passages[detourId]={id:detourId,title:detourTitle,text:detourText,type:'continue',choices:[],contTarget:nextTitle};
+      choices.push({letter:'B',text:aiOptionPool[(i+3)%aiOptionPool.length],target:detourTitle,targetType:'passage'});
       aiChoiceCount++;
+      // Rare death branch: only on longer stories, deeper in
+      if(mainIds.length>6 && i>3 && (i%7===0)){
+        choices.push({letter:'C',text:'Take the riskier option',target:passages[deathId].title,targetType:'death'});
+        aiChoiceCount++;
+      }
     }
     p.choices=choices;aiChoiceCount+=choices.length-1;
+    // Schedule the next branch 3-5 scenes ahead based on story length
+    const step=mainIds.length>8?4+(i%2):3;
+    nextBranchAt=i+step;
   }
 
   for(const id in passages){
