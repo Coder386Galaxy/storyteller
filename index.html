@@ -1242,7 +1242,8 @@ function isBridgePassage(p,choiceText){
   if(p.media)return false;
   const t=String(p.text||'').replace(/\s+/g,' ').trim();
   if(!t)return true; // empty connective scene
-  return !!choiceText&&normEcho(t)==='you '+normEcho(choiceText); // AI-convert echo bridge ("You step inside and climb the stairs.")
+  if(!!choiceText&&normEcho(t)==='you '+normEcho(choiceText))return true;
+  return false;
 }
 function resolveChoiceDest(P,finder,pid,choiceText){
   let cur=pid,g=0;
@@ -2561,64 +2562,93 @@ function doSmartConvert(text){
     mainBlocks.push(b);
   });
 
-  for(let i=0;i<mainIds.length;i++){
-    const p=passages[mainIds[i]];
-    if(i<mainIds.length-1)p.contTarget=passages[mainIds[i+1]].title;
-    else {p.type='victory';p.text=(p.text?p.text+'\n\n':'')+vicTextBase;delete p.contTarget;p.choices=[];}
-  }
-
   let userChoiceCount=0;
   const letters='ABCDEFGHIJ';
-  const forwardFillers=[
-    'Keep going','Press on','Move forward carefully','Take the obvious path','Continue ahead'
-  ];
-  mainIds.forEach((id,i)=>{
+
+  // Process scenes in reverse order so each scene connects seamlessly forward
+  // with 1 click: choices carry their own result directly into the next scene
+  // without pausing on intermediate "Continue →" pages or clicking twice.
+  for(let i=mainIds.length-1; i>=0; i--){
+    const id=mainIds[i];
     const p=passages[id];
     const block=mainBlocks[i];
-    if(block.choices && block.choices.length>0){
-      userChoiceCount+=block.choices.length;
-      p.type='normal';delete p.contTarget;
-      const choices=[];
-      const isLastScene=(i===mainIds.length-1);
-      block.choices.forEach((ctext,ci)=>{
-        const resLines=(block.results&&block.results[ci]&&block.results[ci].length)?block.results[ci].join('\n\n'):'';
-        const combined=(ctext+' '+resLines).toLowerCase();
-        const isDeath=/\b(die|dies|died|death|kill|kills|killed|perish|perishes|fail|fails|failed|give up|ends bad|no escape|wrong|incorrect|lose|loses|lost)\b/.test(combined);
-        const isVictory=/\b(win|wins|won|victory|succeed|succeeds|succeeded|triumph|make it|escape|escapes|home at last|happy ending|safe at home|correct|right answer)\b/.test(combined);
+    const isLastScene=(i===mainIds.length-1);
 
-        let targetType='passage',target='';
-        if(isDeath){
-          const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'the end';
+    if(isLastScene){
+      if(block.choices && block.choices.length>0){
+        userChoiceCount+=block.choices.length;
+        p.type='normal';delete p.contTarget;
+        const choices=[];
+        block.choices.forEach((ctext,ci)=>{
+          const resLines=(block.results&&block.results[ci]&&block.results[ci].length)?block.results[ci].join('\n\n'):'';
+          const combined=(ctext+' '+resLines).toLowerCase();
+          const isDeath=/\b(die|dies|died|death|kill|kills|killed|perish|perishes|fail|fails|failed|ends bad|no escape|wrong|incorrect|game over|lose|loses|lost)\b/.test(combined);
+          const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'ending';
           const tTitle=uniqTitle(tBase);
           const endId=uid();
-          // Choice is final answer: shows death result directly without extra Continue clicks
-          passages[endId]={id:endId,title:tTitle,text:resLines||deathText,type:'death',choices:[]};
-          target=tTitle;
-        }else if(isVictory||isLastScene){
-          const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'victory';
-          const tTitle=uniqTitle(tBase);
-          const endId=uid();
-          // Choice is final answer: shows victory result directly without extra Continue clicks
-          const winText=resLines||(isVictory?vicTextBase:('You chose: '+ctext+'.\n\n— The End —'));
-          passages[endId]={id:endId,title:tTitle,text:winText,type:'victory',choices:[]};
-          target=tTitle;
-        }else{
-          const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'a different path';
-          const tTitle=uniqTitle(tBase);
-          const nextId=mainIds[i+1];
-          const nextP=passages[nextId];
-          const bridgeId=uid();
-          const bridgeText=resLines||('You '+ctext.charAt(0).toLowerCase()+ctext.slice(1)+'.');
-          passages[bridgeId]={id:bridgeId,title:tTitle,text:bridgeText,type:'continue',choices:[],contTarget:nextP.title};
-          target=tTitle;
-        }
-        choices.push({letter:letters[ci],text:ctext,target,targetType});
-      });
-      // Do NOT add a synthetic "Keep going" choice — the user's written choices are
-      // all the choices that belong on this scene.
-      p.choices=choices;
+          if(isDeath){
+            passages[endId]={id:endId,title:tTitle,text:resLines||deathText,type:'death',choices:[]};
+          }else{
+            const winText=resLines||('You chose: '+ctext+'.\n\n— The End —');
+            passages[endId]={id:endId,title:tTitle,text:winText,type:'victory',choices:[]};
+          }
+          choices.push({letter:letters[ci],text:ctext,target:tTitle,targetType:'passage'});
+        });
+        p.choices=choices;
+      }else{
+        // Unbranched narrative at end of story: concludes in victory
+        p.type='victory';
+        p.text=(p.text?p.text+'\n\n':'')+vicTextBase;
+        delete p.contTarget;
+        p.choices=[];
+      }
+    }else{
+      const nextId=mainIds[i+1];
+      const nextP=passages[nextId];
+      if(block.choices && block.choices.length>0){
+        userChoiceCount+=block.choices.length;
+        p.type='normal';delete p.contTarget;
+        const choices=[];
+        block.choices.forEach((ctext,ci)=>{
+          const resLines=(block.results&&block.results[ci]&&block.results[ci].length)?block.results[ci].join('\n\n'):'';
+          const combined=(ctext+' '+resLines).toLowerCase();
+          // In middle scenes: only explicit death ends the path
+          const isDeath=/\b(die|dies|died|death|kill|kills|killed|perish|perishes|fatal|ends your journey|game over)\b/.test(combined);
+          if(isDeath){
+            const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'the end';
+            const tTitle=uniqTitle(tBase);
+            const endId=uid();
+            passages[endId]={id:endId,title:tTitle,text:resLines||deathText,type:'death',choices:[]};
+            choices.push({letter:letters[ci],text:ctext,target:tTitle,targetType:'passage'});
+          }else if(resLines){
+            // 1-CLICK ADVANCE: choice carries its result directly to the next scene
+            // so readers never have to click a second "Continue →" button.
+            const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'next';
+            const tTitle=uniqTitle(tBase);
+            const branchId=uid();
+            passages[branchId]={
+              id:branchId,
+              title:tTitle,
+              text:resLines+(nextP.text?'\n\n'+nextP.text:''),
+              type:nextP.type,
+              choices:JSON.parse(JSON.stringify(nextP.choices||[])),
+              contTarget:nextP.contTarget||null
+            };
+            choices.push({letter:letters[ci],text:ctext,target:tTitle,targetType:'passage'});
+          }else{
+            // Advances directly to the next scene
+            choices.push({letter:letters[ci],text:ctext,target:nextP.title,targetType:'passage'});
+          }
+        });
+        p.choices=choices;
+      }else{
+        // Straight-through narration continues to next scene
+        p.type='continue';
+        p.contTarget=nextP.title;
+        p.choices=[];
+      }
     }
-  });
+  }
 
   // No AI-planted branches: narration scenes stay as pure single-button Continue.
   // Choices appear ONLY where the author actually wrote A)/B)/C) lines, so readers
