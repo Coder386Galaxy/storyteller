@@ -202,7 +202,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
     <div class="hd-r">
       <input type="text" id="storyTitle" placeholder="Story title..." style="background:rgba(255,255,255,.1);border:1px solid #b8860b;color:#f4ecd8;padding:6px 10px;border-radius:4px;min-width:180px">
       <button class="btn btn-sec" onclick="newStory()" title="Start a brand new story (clears the current draft)">✨ New</button>
-      <button class="btn btn-gold" onclick="switchTab('cyoa')">✍️ Write</button>
+      <button class="btn btn-gold" onclick="switchTab('cyoa')">✍️ Build</button>
       <button class="btn btn-sec" onclick="playStory()">▶ Play</button>
       <button class="btn quick-pub" onclick="startPublish(true)" style="padding:7px 12px;font-size:.85em" title="Quick publish (Ctrl+Enter)">⚡ Publish</button>
       <button class="btn btn-sec" id="ageBadge" onclick="editBirthday()" style="padding:7px 10px;font-size:.8em;display:none" title="Your age setting — click to change">🎂 Set age</button>
@@ -229,9 +229,9 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
         <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.05em;padding:13px 22px" onclick="switchTab('convert')">✨ Paste a story (AI finalizes it)</button>
         <button class="btn" onclick="playStory()">▶ Play your story</button>
       </div>
-    <p style="margin-top:12px;font-size:.85em;color:#6b4c3b;max-width:620px;margin-left:auto;margin-right:auto"><b>How it works:</b> type or paste your story and add choice lines like <code style="background:#fff;border:1px solid #d4c4a8;border-radius:4px;padding:0 5px">A) Go left</code> wherever readers should decide. Hit <b>✨ Make It Playable</b> and AI wires everything into a working game — narration flows with a single ➡ Continue between scenes.</p>
+    <p style="margin-top:12px;font-size:.85em;color:#6b4c3b;max-width:620px;margin-left:auto;margin-right:auto"><b>Two ways to build:</b> craft scenes one-by-one with A/B/C branches, or paste prose with inline choices (like <code style="background:#fff;border:1px solid #d4c4a8;border-radius:4px;padding:0 5px">A) Go left</code>) and AI wires them into a working game. Press <kbd style="background:#fff;border:1px solid #d4c4a8;border-radius:4px;padding:1px 6px;font-family:monospace">Ctrl+Enter</kbd> to jump to the next scene instantly.</p>
     <div class="tcards">
-      <div class="tcard" onclick="switchTab('cyoa')"><div class="ti">✍️</div><h3>Write</h3><p>Type or paste your story with inline A/B/C choices — one click makes it playable. Everything saves automatically.</p></div>
+      <div class="tcard" onclick="switchTab('cyoa')"><div class="ti">🔀</div><h3>Build</h3><p>Write passages. Add choices, branches, death, and victory endings. Everything saves automatically.</p></div>
       <div class="tcard" onclick="switchTab('convert')"><div class="ti">✨</div><h3>AI Convert</h3><p>Paste a story — with or without inline choices — and AI finalizes it into a playable CYOP.</p></div>
       <div class="tcard" onclick="switchTab('lib')"><div class="ti">📚</div><h3>Library</h3><p>Published stories grouped by series, with real play counts and honest first-try win rates.</p></div>
       <div class="tcard" onclick="playStory()"><div class="ti">▶️</div><h3>Play</h3><p>Test your adventure like a reader, or import & play a friend's story from a share code.</p></div>
@@ -240,9 +240,9 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
       <h3 style="color:#8b2500;margin-bottom:8px">🎯 How it works</h3>
       <div style="margin-top:10px">
         <ol style="padding-left:20px;line-height:1.9;max-width:600px;margin:0 auto">
-          <li>Hit <b>📝 Start writing</b> — a fresh draft is waiting for you.</li>
-          <li>Type or paste your story. Put <b>A) B) C)</b> choice lines where readers should decide; plain paragraphs flow as ➡ Continue narration.</li>
-          <li>Hit <b>✨ Make It Playable</b> — AI splits it into scenes, chains the narration, and adds <b>💀 death</b> and <b>🏆 victory</b> endings.</li>
+          <li>Hit <b>📝 Start writing</b> — a passage named <b>start</b> is waiting for you.</li>
+          <li>Write a scene. For narration/dialogue, use <b>💬 Continue</b> (readers tap Continue →). For branches, click <b>+ Add choice</b>.</li>
+          <li>Each choice can lead to another passage, to a <b>💀 death</b> ending, or a <b>🏆 victory</b> ending.</li>
           <li>Click <b>⚡ Publish</b>, give it a <b>title</b>, <b>description</b>, and any <b>series</b> it belongs to. AI age-rates it (ST-1 through ST-5) and saves it to your library.</li>
           <li>Share with a friend using the 🔗 button — they get a code they can paste to play your story.</li>
         </ol>
@@ -259,29 +259,8 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 
 <!-- BUILD CYOA -->
 <section id="tab-cyoa" class="tab">
-  <h2>✍️ Write Your Story</h2>
-  <p class="sub">Type or paste your story. Write choices inline with <b>A)</b> <b>B)</b> <b>C)</b> lines wherever readers should decide — everything else flows with a single ➡ Continue. Then hit <b>✨ Make It Playable</b>.</p>
-  <div class="card" style="background:linear-gradient(135deg,#f5f0ff,#faf3e3);border-color:#7c3aed">
-    <label for="buildText" style="color:#6d28d9">📝 Your story (type or paste — include A/B/C choice lines where you want them)</label>
-    <textarea id="buildText" placeholder="Just write. Put choices on their own lines like this:&#10;&#10;You stand at a fork in the road.&#10;A) Take the path through the woods&#10;B) Follow the river&#10;C) Turn back&#10;&#10;The woods are dark and silent...&#10;&#10;Every paragraph becomes a scene, chained with ➡ Continue. Scenes without choices just flow — readers only pick where you wrote a choice." style="min-height:380px;font-family:Georgia,serif;line-height:1.7"></textarea>
-    <div id="buildProg" style="display:none;text-align:center;padding:20px;margin-top:10px">
-      <div style="font-size:2em">⏳</div>
-      <p id="buildProgText" style="margin-top:10px;color:#6b4c8a;font-style:italic">Reading your story...</p>
-    </div>
-    <div id="buildResult" style="display:none;text-align:center;padding:18px;margin-top:10px;background:#fff;border:2px solid #b8860b;border-radius:10px">
-      <p id="buildResultText" style="margin-bottom:12px"></p>
-      <button class="btn" onclick="playStory()">▶ Test play</button>
-      <button class="btn quick-pub" onclick="startPublish(true)">⚡ Publish</button>
-      <button class="btn btn-sec" onclick="exportHTML()">⬇ Export</button>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;justify-content:center">
-      <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.15em;padding:14px 32px" onclick="runBuildFinalize()">✨ Make It Playable</button>
-      <button class="btn btn-sec" onclick="loadSampleConv()">📋 Load example with choices</button>
-      <button class="btn btn-sec" onclick="loadSampleLinear()">📋 Load plain story (no choices)</button>
-      <button class="btn btn-sec" onclick="clearDraft()">🗑 Clear</button>
-    </div>
-  </div>
-  <div id="classicBuilder" style="display:none">
+  <h2>🔀 Build Your Adventure</h2>
+  <p class="sub">Write passages. Add A/B/C/D choices. Each choice goes to another passage, death, or victory.</p>
   <div class="cyoa">
     <div class="sidebar">
       <h4>Passages <button class="btn btn-gold btn-sm" style="padding:4px 10px;font-size:.85em" onclick="newPassage()">+ New</button></h4>
@@ -337,7 +316,6 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
       </div>
     </div>
   </div>
-  </div>
 </section>
 
 <!-- AI CONVERT -->
@@ -372,7 +350,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
       <h3 style="color:#15803d;margin-bottom:6px">✅ Ready to play!</h3>
       <p id="convResultText" style="margin-bottom:14px"></p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn btn-gold" onclick="switchTab('cyoa')">✍️ Back to your draft</button>
+        <button class="btn btn-gold" onclick="switchTab('cyoa')">✍️ Edit in builder</button>
         <button class="btn" onclick="playStory()">▶ Test play</button>
       </div>
     </div>
@@ -715,7 +693,7 @@ function newStory(blank){
   renderList();renderEditor();
   // Focus the textarea so user can start writing immediately
   setTimeout(()=>{
-    const t=document.getElementById('buildText');if(t)t.focus();
+    const t=document.getElementById('ptext');if(t)t.focus();
     const title=document.getElementById('storyTitle');
   },50);
   toast('Fresh blank story — start writing!');
@@ -2410,34 +2388,6 @@ function runConvert(){
   setTimeout(()=>{clearInterval(iv);try{doSmartConvert(text);}catch(e){console.error(e);document.getElementById('convProg').style.display='none';toast('Error: '+e.message);}},1600);
 }
 
-function runBuildFinalize(){
-  const text=document.getElementById('buildText').value.trim();
-  if(!text){toast('Write or paste a story first!');return;}
-  if(text.length<40){toast('That\u2019s too short \u2014 write at least a few sentences.');return;}
-  const prog=document.getElementById('buildProg');
-  const progText=document.getElementById('buildProgText');
-  prog.style.display='block';
-  document.getElementById('buildResult').style.display='none';
-  const steps=[
-    '\ud83d\udcd6 Reading your story...',
-    '\ud83d\udd0d Finding choices in your writing...',
-    '\u2702\ufe0f Splitting into scenes...',
-    '\u27a1 Chaining narration with Continue...',
-    '\ud83c\udf3f Connecting your choices to scenes...',
-    '\ud83d\udd17 Filling in missing paths...',
-    '\ud83d\udc80 Adding death & victory endings...',
-    '\u2728 Finalizing your adventure!'
-  ];
-  let i=0;progText.textContent=steps[0];
-  const iv=setInterval(()=>{i++;if(i<steps.length)progText.textContent=steps[i];},180);
-  setTimeout(()=>{clearInterval(iv);try{doSmartConvert(text);prog.style.display='none';document.getElementById('buildResult').style.display='block';document.getElementById('buildResultText').textContent=document.getElementById('convResultText').textContent;}catch(e){prog.style.display='none';toast('Error: '+e.message);}},1600);
-}
-function clearDraft(){
-  document.getElementById('buildText').value='';
-  document.getElementById('buildResult').style.display='none';
-  toast('Cleared');
-}
-
 function parseStory(text){
   const lines=text.split(/\n/);
   const blocks=[];
@@ -2607,15 +2557,11 @@ function doSmartConvert(text){
 }
 
 function loadSampleConv(){
-  const t="The lighthouse stood at the cliff edge, dark for forty years. Tonight a thin thread of light spun through the fog.\n\nI climbed the winding path. The door hung open on rusted hinges.\n\nA) Step inside and climb the stairs\nB) Circle around to the back\nC) Turn and head home\n\nThe stairs groaned under my weight. At the top, the lens was cracked, and dust covered everything. But scratched into the glass, in letters that looked fresh, was a single word: RUN.";
-  document.getElementById('convText').value=t;
-  const b=document.getElementById('buildText');if(b)b.value=t;
-  toast('Sample loaded \u2014 has A/B/C choices, click \u2728 Make It Playable');
+  document.getElementById('convText').value="The lighthouse stood at the cliff edge, dark for forty years. Tonight a thin thread of light spun through the fog.\n\nI climbed the winding path. The door hung open on rusted hinges.\n\nA) Step inside and climb the stairs\nB) Circle around to the back\nC) Turn and head home\n\nThe stairs groaned under my weight. At the top, the lens was cracked, and dust covered everything. But scratched into the glass, in letters that looked fresh, was a single word: RUN.";
+  toast('Sample loaded \u2014 has A/B/C choices, click \u2728 Finalize');
 }
 function loadSampleLinear(){
-  const t="Lila had heard the stories about the old lighthouse. They said it had been dark for forty years \u2014 but on foggy nights, you could still see its light.\n\nShe climbed the winding path as the sun went down. Seagulls cried overhead and the ocean crashed far below. The lighthouse door hung open on rusted hinges.\n\nInside, a spiral staircase wound up into darkness. A cold wind blew from above. Somewhere up there, a floorboard creaked.\n\nAt the top of the stairs she found the lamp room. The lens was cracked, covered in dust. But scratched into the glass, fresh and bright, was a single word: RUN.";
-  document.getElementById('convText').value=t;
-  const b=document.getElementById('buildText');if(b)b.value=t;
+  document.getElementById('convText').value="Lila had heard the stories about the old lighthouse. They said it had been dark for forty years \u2014 but on foggy nights, you could still see its light.\n\nShe climbed the winding path as the sun went down. Seagulls cried overhead and the ocean crashed far below. The lighthouse door hung open on rusted hinges.\n\nInside, a spiral staircase wound up into darkness. A cold wind blew from above. Somewhere up there, a floorboard creaked.\n\nAt the top of the stairs she found the lamp room. The lens was cracked, covered in dust. But scratched into the glass, fresh and bright, was a single word: RUN.";
   toast('Plain story loaded \u2014 it will finalize as straight-through narration');
 }
 // ====== COMMUNITY / SHARE / IMPORT ======
