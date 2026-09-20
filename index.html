@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Storyteller — Build Your Own Choose-Your-Own-Adventure</title>
+<title>Storyteller CYOA — Build Your Own Choose-Your-Own-Adventure</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Georgia,'Times New Roman',serif;background:#f4ecd8;color:#2c1810;min-height:100vh;line-height:1.6}
@@ -198,7 +198,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 <body>
 
 <header>
-  <div class="logo">📖 Storyteller<small>WRITE YOUR OWN ADVENTURE</small></div>
+  <div class="logo">📖 Storyteller CYOA<small>WRITE YOUR OWN ADVENTURE</small></div>
     <div class="hd-r">
       <input type="text" id="storyTitle" placeholder="Story title..." style="background:rgba(255,255,255,.1);border:1px solid #b8860b;color:#f4ecd8;padding:6px 10px;border-radius:4px;min-width:180px">
       <button class="btn btn-sec" onclick="newStory()" title="Start a brand new story (clears the current draft)">✨ New</button>
@@ -222,7 +222,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 <!-- HOME -->
 <section id="tab-home" class="tab active">
   <div class="hero">
-    <h1>✨ Storyteller — Write Your Own Adventure ✨</h1>
+    <h1>✨ Storyteller CYOA — Write Your Own Adventure ✨</h1>
     <p>Build branching <b>choose-your-own-adventure</b> stories right in your browser. Write scenes, add choices, end in <b style="color:#991b1b">death</b> or <b style="color:#15803d">victory</b>. Paste a rough draft and AI turns it into a playable CYOA — or start from scratch.</p>
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button class="btn btn-gold" onclick="newStory(true)" style="font-size:1.15em;padding:14px 26px">📝 Start writing</button>
@@ -2416,12 +2416,8 @@ function doSmartConvert(text){
         }
         choices.push({letter:letters[ci],text:ctext,target,targetType});
       });
-      if(i<mainIds.length-1){
-        const nextTitle=passages[mainIds[i+1]].title;
-        if(!choices.some(c=>/keep going|press on|continue|forward/.test(c.text.toLowerCase()))){
-          choices.push({letter:letters[choices.length],text:forwardFillers[i%forwardFillers.length],target:nextTitle,targetType:'passage'});
-        }
-      }
+      // Do NOT add a synthetic "Keep going" choice — the user's written choices are
+      // all the choices that belong on this scene.
       p.choices=choices;
     }
   });
