@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Storyteller CYOP — Build Your Own Choose-Your-Own-Adventure</title>
+<title>Storyteller CYOP — Build Your Own Choose-Your-Own-Path</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Georgia,'Times New Roman',serif;background:#f4ecd8;color:#2c1810;min-height:100vh;line-height:1.6}
@@ -223,7 +223,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 <section id="tab-home" class="tab active">
   <div class="hero">
     <h1>✨ Storyteller CYOP — Write Your Own Adventure ✨</h1>
-    <p>Build branching <b>choose-your-own-adventure</b> stories right in your browser. Write scenes, add choices, end in <b style="color:#991b1b">death</b> or <b style="color:#15803d">victory</b>. Paste a rough draft and AI turns it into a playable CYOA — or start from scratch.</p>
+    <p>Build branching <b>choose-your-own-path</b> stories right in your browser. Write scenes, add choices, end in <b style="color:#991b1b">death</b> or <b style="color:#15803d">victory</b>. Paste a rough draft and AI turns it into a playable CYOP — or start from scratch.</p>
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button class="btn btn-gold" onclick="newStory(true)" style="font-size:1.15em;padding:14px 26px">📝 Start writing</button>
         <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.05em;padding:13px 22px" onclick="switchTab('convert')">✨ Paste a story (AI finalizes it)</button>
@@ -232,7 +232,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
     <p style="margin-top:12px;font-size:.85em;color:#6b4c3b;max-width:620px;margin-left:auto;margin-right:auto"><b>Two ways to build:</b> craft scenes one-by-one with A/B/C branches, or paste prose with inline choices (like <code style="background:#fff;border:1px solid #d4c4a8;border-radius:4px;padding:0 5px">A) Go left</code>) and AI wires them into a working game. Press <kbd style="background:#fff;border:1px solid #d4c4a8;border-radius:4px;padding:1px 6px;font-family:monospace">Ctrl+Enter</kbd> to jump to the next scene instantly.</p>
     <div class="tcards">
       <div class="tcard" onclick="switchTab('cyoa')"><div class="ti">🔀</div><h3>Build</h3><p>Write passages. Add choices, branches, death, and victory endings. Everything saves automatically.</p></div>
-      <div class="tcard" onclick="switchTab('convert')"><div class="ti">✨</div><h3>AI Convert</h3><p>Paste a story — with or without inline choices — and AI finalizes it into a playable CYOA.</p></div>
+      <div class="tcard" onclick="switchTab('convert')"><div class="ti">✨</div><h3>AI Convert</h3><p>Paste a story — with or without inline choices — and AI finalizes it into a playable CYOP.</p></div>
       <div class="tcard" onclick="switchTab('lib')"><div class="ti">📚</div><h3>Library</h3><p>Published stories grouped by series, with real play counts and honest first-try win rates.</p></div>
       <div class="tcard" onclick="playStory()"><div class="ti">▶️</div><h3>Play</h3><p>Test your adventure like a reader, or import & play a friend's story from a share code.</p></div>
     </div>
@@ -321,23 +321,23 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 <!-- AI CONVERT -->
 <section id="tab-convert" class="tab">
   <h2>✨ Paste Story → AI Finalizes</h2>
-  <p class="sub">Paste your writing and your choices below. AI connects everything into a playable CYOA — adding Continue → links where you didn't write choices, filling in missing endings, and cleaning up paths. You can write choices inline with <b>A/B/C</b> labels, or just let AI add them.</p>
+  <p class="sub">Paste your writing and your choices below. AI connects everything into a playable CYOP — adding Continue → links where you didn't write choices, filling in missing endings, and cleaning up paths. Write choices inline with <b>A/B/C</b> labels wherever you want a decision — scenes without choices flow as plain Continue buttons.</p>
   <div class="card" style="background:linear-gradient(135deg,#f5f0ff,#faf3e3);border-color:#7c3aed">
     <label for="convText" style="color:#6d28d9">📝 Paste your story (with or without choices)</label>
-    <textarea id="convText" placeholder="Just paste. You can include choices like this:&#10;&#10;You stand at a fork in the road.&#10;A) Take the path through the woods&#10;B) Follow the river&#10;C) Turn back&#10;&#10;The woods are dark and silent...&#10;&#10;Tip: write each scene as a paragraph. Label choices with 'A)', 'B.', 'A:', '1)', bullet points, or just list them — AI figures it out. If you don't write any choices, AI adds a few balanced ones for you." style="min-height:420px;font-family:Georgia,serif;line-height:1.7"></textarea>
+    <textarea id="convText" placeholder="Just paste. You can include choices like this:&#10;&#10;You stand at a fork in the road.&#10;A) Take the path through the woods&#10;B) Follow the river&#10;C) Turn back&#10;&#10;The woods are dark and silent...&#10;&#10;Tip: write each scene as a paragraph. Label choices with 'A)', 'B.', 'A:', '1)', bullet points, or just list them — AI figures it out. If you don't write any choices, the story plays as straight-through narration with Continue buttons." style="min-height:420px;font-family:Georgia,serif;line-height:1.7"></textarea>
     <div style="background:#fff;border:1px dashed #7c3aed;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.85em;color:#4c1d95">
       <b style="color:#6d28d9">How it works:</b>
       <ul style="margin:4px 0 0 18px;line-height:1.5">
         <li>Each paragraph becomes a scene, chained together with Continue → buttons.</li>
         <li>Lines that look like choices (A/B/C, bullets, numbered) get turned into real branching buttons.</li>
         <li>AI fills in death and victory endings, connects loose ends, and names scenes.</li>
-        <li>If you don't write any choices, AI adds a few balanced ones automatically.</li>
+        <li>If you don't write any choices, the story plays as straight-through narration (Continue → all the way to the ending).</li>
       </ul>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;justify-content:center">
-      <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.15em;padding:14px 32px" onclick="runConvert()">✨ Finalize Into CYOA</button>
+      <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.15em;padding:14px 32px" onclick="runConvert()">✨ Finalize Into CYOP</button>
       <button class="btn btn-sec" onclick="loadSampleConv()">📋 Load example story with choices</button>
-      <button class="btn btn-sec" onclick="loadSampleLinear()">📋 Load plain story (AI adds choices)</button>
+      <button class="btn btn-sec" onclick="loadSampleLinear()">📋 Load plain story (no choices)</button>
       <button class="btn btn-sec" onclick="document.getElementById('convText').value='';document.getElementById('convResult').style.display='none';toast('Cleared')">🗑 Clear</button>
     </div>
     <div id="convProg" style="display:none;text-align:center;padding:20px;margin-top:10px">
@@ -1764,7 +1764,7 @@ let pubData=null;
 function autoDescription(){
   // Build a brief description from the start passage text
   const sid=findPidByLabel('start');
-  if(!sid)return 'A choose-your-own-adventure story.';
+  if(!sid)return 'A choose-your-own-path story.';
   const s=cyoa.passages[sid].text.trim();
   const firstLine=s.split(/\n/)[0];
   return firstLine.slice(0,160)+(firstLine.length>160?'...':'');
@@ -2523,7 +2523,7 @@ function loadSampleConv(){
 }
 function loadSampleLinear(){
   document.getElementById('convText').value="Lila had heard the stories about the old lighthouse. They said it had been dark for forty years \u2014 but on foggy nights, you could still see its light.\n\nShe climbed the winding path as the sun went down. Seagulls cried overhead and the ocean crashed far below. The lighthouse door hung open on rusted hinges.\n\nInside, a spiral staircase wound up into darkness. A cold wind blew from above. Somewhere up there, a floorboard creaked.\n\nAt the top of the stairs she found the lamp room. The lens was cracked, covered in dust. But scratched into the glass, fresh and bright, was a single word: RUN.";
-  toast('Plain story loaded \u2014 AI will add choices for you');
+  toast('Plain story loaded \u2014 it will finalize as straight-through narration');
 }
 // ====== COMMUNITY / SHARE / IMPORT ======
 function _p(id,title,text,type,choices){return {id,title,text,type:type||'normal',choices:choices||[]};}
