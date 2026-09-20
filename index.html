@@ -639,6 +639,10 @@ document.addEventListener('keydown',e=>{
 function save(){
   try{localStorage.setItem(LS_CYOA,JSON.stringify(cyoa));}catch(e){}
   try{if(curPid)localStorage.setItem(LS_CURPID,curPid);else localStorage.removeItem(LS_CURPID);}catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function'){
+    if(window._backupDebounce) clearTimeout(window._backupDebounce);
+    window._backupDebounce = setTimeout(()=>{ backupAccountMemory(currentUser.email); }, 1500);
+  }
 }
 function seedStarter(){
   const sid='p_start',wid='p_well',tid='p_tower',
@@ -1884,6 +1888,38 @@ function analyzeRating(story){
 
 // Publish wizard state
 let pubData=null;
+
+function analyzeDifficulty(story){
+  if(!story||!story.passages) return {level:'Normal',code:'MODERATE',stars:'★★★☆☆',color:'#b8860b',desc:'Balanced choices and moderate challenge.'};
+  const passages=story.passages;
+  const total=Object.keys(passages).length;
+  const deaths=Object.values(passages).filter(p=>p.type==='death').length;
+  const vics=Object.values(passages).filter(p=>p.type==='victory').length;
+  let choicesCount=0;
+  Object.values(passages).forEach(p=>{choicesCount+=(p.choices?p.choices.length:0);});
+  
+  const deathRatio=deaths/Math.max(total,1);
+  const choiceDensity=choicesCount/Math.max(total,1);
+
+  let diffScore=1;
+  if(total>=5) diffScore+=1;
+  if(total>=12) diffScore+=1;
+  if(deaths>=1) diffScore+=1;
+  if(deaths>=2 || deathRatio>=0.2) diffScore+=1;
+  if(deaths>=4 || deathRatio>=0.35) diffScore+=1;
+  if(choiceDensity>=2.0) diffScore+=1;
+
+  if(diffScore<=2){
+    return {level:'Easy',code:'CASUAL',stars:'★☆☆☆☆',color:'#15803d',desc:'Forgiving paths, clear navigation, and minimal danger.'};
+  }else if(diffScore<=4){
+    return {level:'Medium',code:'MODERATE',stars:'★★★☆☆',color:'#b8860b',desc:'Balanced stakes with interesting decisions and occasional peril.'};
+  }else if(diffScore<=5){
+    return {level:'Hard',code:'CHALLENGING',stars:'★★★★☆',color:'#c2410c',desc:'High mortality rate and cunning puzzles where one wrong step is fatal.'};
+  }else{
+    return {level:'Nightmare',code:'EXTREME',stars:'★★★★★',color:'#991b1b',desc:'Ruthless traps, intricate branching, and unforgiving life-or-death gauntlets.'};
+  }
+}
+
 function autoDescription(){
   // Build a brief description from the start passage text
   const sid=findPidByLabel('start');
@@ -1918,7 +1954,7 @@ function startPublish(quick){
     title:document.getElementById('storyTitle').value.trim()||'Untitled Adventure',
     description:autoDescription(),
     series:'',
-    author:'You',
+    author:(currentUser&&currentUser.username)?currentUser.username:'Storyteller',
     snapshot:JSON.parse(JSON.stringify(cyoa)),
     publishedAt:Date.now()
   };
@@ -2007,6 +2043,7 @@ function openPub(step){
     },450);
     // Compute rating now (in background while animating)
     pubData.rating=analyzeRating(pubData.snapshot);
+    pubData.difficulty=analyzeDifficulty(pubData.snapshot);
   }else if(step==='step3'){
     const r=pubData.rating;
     const countPass=Object.keys(pubData.snapshot.passages).length;
@@ -2027,6 +2064,18 @@ function openPub(step){
           <div style="color:#6b4c3b;font-size:.9em;margin-top:4px">${esc(pubData.description)}</div>
           ${seriesLine}
           ${privacyLine}
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px;background:#fefce8;border:2px solid #ca8a04;border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:.78em;text-transform:uppercase;letter-spacing:1.5px;color:#854d0e;font-weight:700">AI Difficulty</div>
+            <div style="font-size:1.4em;font-weight:800;color:${pubData.difficulty.color};margin:4px 0">${pubData.difficulty.level} <span style="font-size:.7em">${pubData.difficulty.stars}</span></div>
+            <div style="font-size:.8em;color:#713f12">${pubData.difficulty.desc}</div>
+          </div>
+          <div style="flex:1;min-width:180px;background:#f3f4f6;border:2px solid #6b7280;border-radius:10px;padding:12px;text-align:center">
+            <div style="font-size:.78em;text-transform:uppercase;letter-spacing:1.5px;color:#374151;font-weight:700">Creator</div>
+            <div style="font-size:1.3em;font-weight:800;color:#1f2937;margin:4px 0">👤 @${esc(pubData.author)}</div>
+            <div style="font-size:.8em;color:#4b5563">Assigned to your account profile</div>
+          </div>
         </div>
         <div class="rating-card ${r.r.color}">
           <div style="font-size:.85em;text-transform:uppercase;letter-spacing:2px;opacity:.7">AI Age Rating</div>
@@ -2124,13 +2173,16 @@ function pubAgeVerify(){
   },true);
 }
 function finishPublish(){
+  const creatorUser = (currentUser && currentUser.username) ? currentUser.username : (pubData.author || 'Anonymous');
+  const diff = pubData.difficulty || analyzeDifficulty(pubData.snapshot);
   const entry={
     id:uid(),
     title:pubData.title,
     description:pubData.description,
     series:pubData.series,
-    author:pubData.author||'You',
+    author:creatorUser,
     rating:pubData.rating,
+    difficulty:diff,
     story:pubData.snapshot,
     publishedAt:pubData.publishedAt,
     plays:0,
@@ -2280,14 +2332,19 @@ function libCard(s){
     +'<div class="lt">'+esc(s.title)+'</div>'
     +'<div class="ls">'+seriesBit+passCount+' passages · published '+esc(dateStr)+'</div>'
     +'<div class="ld">'+esc(s.description||'No description.')+'</div>'
-    +'<div class="lmeta">'
-      +'<span class="rb '+r.color+'">'+r.code+(s.rating.score===5?' 🔞':'')+(s.rating.score>1?' · '+min+'+':'')+'</span>'
-      +(s.rating.schoolFriendly?'<span class="rb school" title="School-friendly — appropriate for class">🏫 School</span>':'')
-      +(s.author?'<span class="rb" style="background:#e7d8b8;color:#4a2c1a" title="Author">✍️ '+esc(s.author)+'</span>':'')
-      +(s._community?'<span class="rb" style="background:#fde68a;color:#78350f">🌟 Community</span>':'')
-      +privateBadge
-      +buttons
-    +'</div>'
+    +(()=>{
+      const diff = s.difficulty || analyzeDifficulty(s.story);
+      const authorName = s.author || ((s._owned&&currentUser&&currentUser.username)?currentUser.username:'Creator');
+      return '<div class="lmeta">'
+        +'<span class="rb '+r.color+'" title="AI Age Rating: '+esc(r.name)+'">🔞 '+r.code+(s.rating.score>1?' · '+min+'+':' · All Ages')+'</span>'
+        +'<span class="rb" style="background:'+diff.color+';color:#fff;font-weight:700" title="AI Assigned Difficulty: '+diff.level+'">⚡ '+diff.level+' '+diff.stars+'</span>'
+        +'<span class="rb" style="background:#e7d8b8;color:#4a2c1a;font-weight:700" title="Creator Username">👤 @'+esc(authorName)+'</span>'
+        +(s.rating.schoolFriendly?'<span class="rb school" title="School-friendly — appropriate for class">🏫 School</span>':'')
+        +(s._community?'<span class="rb" style="background:#fde68a;color:#78350f">🌟 Community</span>':'')
+        +privateBadge
+        +buttons
+      +'</div>';
+    })()
     +'<div class="lstats">'+statsHtml+'</div>'
     +(isPrivate?'<div style="position:absolute;inset:0;background:rgba(44,24,16,.72);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f4ecd8;text-align:center;padding:20px;gap:10px;cursor:pointer" onclick="event.stopPropagation();showPrivateMsg(\''+s.id+'\')"><div style="font-size:2.5em">🔒</div><div style="font-weight:700">Private</div><div style="font-size:.85em;opacity:.9">Only you can see this. Tap 👁 to make public.</div></div>':'')
     +(locked?'<div style="position:absolute;inset:0;background:rgba(44,24,16,.82);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f4ecd8;text-align:center;padding:20px;gap:8px;cursor:pointer" onclick="event.stopPropagation();showLockedMsgById(this.closest(\'.lib-card\').dataset.storyid)" data-storyid="'+s.id+'"><div style="font-size:2.5em">🔒</div><div style="font-weight:700">'+r.code+' — Ages '+min+'+</div><div style="font-size:.82em;opacity:.85">You must be '+min+'+ to read this.'+ageBadge+'</div><div style="margin-top:6px;font-size:.75em;text-decoration:underline">Details</div></div>':'')
@@ -2398,9 +2455,25 @@ function readStoryObject(s,addToLib,idx){
     const authorLine=s.author?`<span class="rb" style="background:#e7d8b8;color:#4a2c1a">✍️ ${esc(s.author)}</span>`:'';
     const saveBtn=addToLib?'':`<button class="btn btn-gold" style="padding:4px 10px;font-size:.85em;margin-left:6px" onclick="event.stopPropagation();addCommunityToLibFromRead('${s.id}')">➕ Save to my library</button>`;
     const shareBtn=`<button class="btn btn-sec" style="padding:4px 10px;font-size:.85em;margin-left:6px" onclick="shareStoryId('${s.id}')">🔗 Share</button>`;
+    const diff = s.difficulty || analyzeDifficulty(s.story);
+    const authorUser = s.author || ((s._owned&&currentUser&&currentUser.username)?currentUser.username:'Creator');
+    const minAge = MIN_AGE[s.rating.score]||0;
+    const ageLabel = s.rating.score===1?'All Ages':(minAge+'+');
     let h=`<div style="margin-bottom:8px;display:flex;align-items:center;flex-wrap:wrap">
       <button class="btn btn-sec" style="padding:4px 10px;font-size:.85em" onclick="closeRead()">← Back to Library</button>${saveBtn}${shareBtn}
-    </div><h1 style="border-bottom:2px solid #b8860b;padding-bottom:8px;margin-bottom:16px">${esc(s.title)}</h1><div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap"><span class="rb ${s.rating.r.color}" style="font-size:.85em">${s.rating.r.code} — ${s.rating.r.name}</span>${s.rating.schoolFriendly?'<span class="rb school" style="font-size:.85em">🏫 School-Friendly</span>':''}${authorLine}${s.series?'<span style="font-size:.8em;color:#6b4c3b">📚 '+esc(s.series)+'</span>':''}</div><div style="font-style:italic;color:#6b4c3b;margin-bottom:14px;font-size:.9em">${esc(s.description||'')}</div>${renderFeedbackBar(s.id)}${renderMediaHTML(p)}<div class="ptxt">${esc(p.text)}</div>`;
+    </div>
+    <div style="background:#fffcf5;border:2px solid #d4c4a8;border-radius:10px;padding:12px 16px;margin-bottom:16px">
+      <h1 style="border-bottom:2px solid #b8860b;padding-bottom:6px;margin-bottom:10px;font-size:1.8em;color:#8b2500">${esc(s.title)}</h1>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <span class="rb" style="background:#4a2c1a;color:#f4ecd8;font-size:.9em;padding:4px 10px">👤 <b>Creator:</b> @${esc(authorUser)}</span>
+        <span class="rb ${s.rating.r.color}" style="font-size:.9em;padding:4px 10px" title="AI Age Rating">🔞 <b>Age Rating:</b> ${s.rating.r.code} (${ageLabel})</span>
+        <span class="rb" style="background:${diff.color};color:#fff;font-size:.9em;padding:4px 10px" title="AI Assigned Difficulty">⚡ <b>AI Difficulty:</b> ${diff.level} ${diff.stars}</span>
+        ${s.rating.schoolFriendly?'<span class="rb school" style="font-size:.85em">🏫 School-Friendly</span>':''}
+        ${s.series?'<span style="font-size:.85em;color:#6b4c3b;margin-left:4px">📚 <b>Series:</b> '+esc(s.series)+'</span>':''}
+      </div>
+      <div style="font-style:italic;color:#6b4c3b;font-size:.92em">${esc(s.description||'')}</div>
+    </div>
+    ${renderFeedbackBar(s.id)}${renderMediaHTML(p)}<div class="ptxt">${esc(p.text)}</div>`;
     if(p.type==='continue'){
       const tid=p.contTarget?findTgt({target:p.contTarget,targetType:'passage'}):null;
       const tP=tid?passages[tid]:null;
@@ -2894,7 +2967,7 @@ function shareStoryId(id){
   const s=found.story;
   // Private stories can't be shared
   if(s._private){toast('This story is private — make it public first (👁) to share.');return;}
-  const code=b64encode({t:s.title,d:s.description,se:s.series,r:s.rating.score,a:s.author||'',p:s.story.passages});
+  const diff=s.difficulty||analyzeDifficulty(s.story);const code=b64encode({t:s.title,d:s.description,se:s.series,r:s.rating.score,a:s.author||'',dif:diff.level,p:s.story.passages});
   const url=location.origin+location.pathname+'?story='+code;
   // Copy and show
   const ta=document.createElement('textarea');ta.value=code;document.body.appendChild(ta);ta.select();
@@ -3061,7 +3134,7 @@ function rateFromScore(score){
           passages[k]={id:k,title:pp.title||k,text:pp.text||'',type:pp.type==='continue'||pp.type==='death'||pp.type==='victory'?pp.type:'normal',
             choices:(pp.choices||[]).map(c=>({letter:c.letter||'?',text:c.text||'Continue...',target:c.target||'',targetType:c.targetType==='death'||c.targetType==='victory'?c.targetType:'passage'}))};
         });
-        const entry={id,title:data.t||'Shared Story',description:data.d||'',series:data.se||'',author:data.a||'Shared link',rating,story:{passages},publishedAt:Date.now(),plays:0,firstTryWins:0,_community:true,_imported:true,_owned:false};
+        const diff=analyzeDifficulty({passages});const entry={id,title:data.t||'Shared Story',description:data.d||'',series:data.se||'',author:data.a||'Shared link',rating,difficulty:diff,story:{passages},publishedAt:Date.now(),plays:0,firstTryWins:0,_community:true,_imported:true,_owned:false};
         if(!getImported().some(x=>x.id===id)&&!library.some(x=>x.id===id)){addImported(entry);updateLibCount();renderLib();}
         // Open it after init — rating/ID gates handled inside readPublishedId → readStoryObject
         setTimeout(()=>{
@@ -3344,17 +3417,23 @@ function refreshFB(sid){
 }
 
 
-// ================= AUTHENTICATION & MULTI-DEVICE ACCOUNT =================
+// ================= AUTHENTICATION, USERNAME & ACCOUNT CLOUD MEMORY =================
 const LS_AUTH_USER = 'sf_auth_user';
 const LS_AUTH_REGISTRY = 'sf_accounts_db';
 let currentUser = null;
 let _pendingOTP = null;
 let _pendingEmail = null;
+let _pendingUsername = null;
+let _isNewAccount = false;
 
 function loadAuthUser(){
   try{
     const u = localStorage.getItem(LS_AUTH_USER);
-    if(u) currentUser = JSON.parse(u);
+    if(u){
+      currentUser = JSON.parse(u);
+      // Auto-restore saved account memory/state
+      restoreAccountMemory(currentUser);
+    }
   }catch(e){ currentUser = null; }
 }
 
@@ -3381,14 +3460,85 @@ function saveToRegistry(email, data){
   }catch(e){}
 }
 
+// Account Memory & Cloud Backup System
+function backupAccountMemory(email){
+  const targetEmail = (email || (currentUser && currentUser.email) || '').toLowerCase();
+  if(!targetEmail) return;
+  try{
+    const reg = getAccountRegistry();
+    const acct = reg[targetEmail] || {};
+    const memory = {
+      cyoa: cyoa,
+      curPid: curPid,
+      title: document.getElementById('storyTitle') ? document.getElementById('storyTitle').value : '',
+      library: library,
+      playedTracker: playedTracker,
+      dob: localStorage.getItem('sf_dob') || '',
+      openai: localStorage.getItem('sf_openai') || '',
+      pro: localStorage.getItem('sf_pro') || '0',
+      savedAt: Date.now()
+    };
+    acct.memory = memory;
+    acct.lastBackup = Date.now();
+    reg[targetEmail] = acct;
+    localStorage.setItem(LS_AUTH_REGISTRY, JSON.stringify(reg));
+    if(currentUser && currentUser.email.toLowerCase() === targetEmail){
+      currentUser.memory = memory;
+      saveAuthUser(currentUser);
+    }
+  }catch(e){ console.warn('Memory backup failed', e); }
+}
+
+function restoreAccountMemory(user){
+  if(!user || !user.email) return;
+  try{
+    const reg = getAccountRegistry();
+    const acct = reg[user.email.toLowerCase()];
+    const mem = (acct && acct.memory) || user.memory;
+    if(!mem) return;
+    if(mem.cyoa && mem.cyoa.passages && Object.keys(mem.cyoa.passages).length > 0){
+      cyoa = mem.cyoa;
+      save();
+    }
+    if(mem.title){
+      const el = document.getElementById('storyTitle');
+      if(el) el.value = mem.title;
+      try{ localStorage.setItem('sf_title', mem.title); }catch(e){}
+    }
+    if(Array.isArray(mem.library) && mem.library.length > 0){
+      // Merge library seamlessly
+      const existingIds = new Set(library.map(x=>x.id));
+      mem.library.forEach(item => {
+        if(!existingIds.has(item.id)) library.push(item);
+      });
+      saveLib();
+    }
+    if(mem.playedTracker){
+      playedTracker = Object.assign({}, playedTracker, mem.playedTracker);
+      savePlayed();
+    }
+    if(mem.dob){
+      try{ localStorage.setItem('sf_dob', mem.dob); }catch(e){}
+      userAge = calcAge(mem.dob);
+    }
+    if(mem.openai){
+      try{ localStorage.setItem('sf_openai', mem.openai); }catch(e){}
+    }
+    if(mem.pro === '1'){
+      try{ localStorage.setItem('sf_pro', '1'); }catch(e){}
+      renderProBadge();
+    }
+  }catch(e){ console.warn('Memory restore failed', e); }
+}
+
 function renderAccountBadge(){
   const badge = document.getElementById('accountBadge');
   const txt = document.getElementById('accountEmailText');
   if(!badge || !txt) return;
-  if(currentUser && currentUser.email){
+  if(currentUser && (currentUser.username || currentUser.email)){
     badge.style.display = 'inline-flex';
-    txt.textContent = currentUser.email.split('@')[0];
-    badge.title = 'Logged in as ' + currentUser.email;
+    txt.textContent = currentUser.username ? ('@' + currentUser.username) : currentUser.email.split('@')[0];
+    badge.title = 'Logged in as @' + (currentUser.username||'user') + ' (' + currentUser.email + ')';
   } else {
     badge.style.display = 'inline-flex';
     txt.textContent = 'Log In';
@@ -3414,21 +3564,35 @@ function openAuthModal(step){
     box.innerHTML = `
       <div style="font-size:2.4em;margin-bottom:6px">📖</div>
       <h2>Welcome to Storyteller</h2>
-      <p class="auth-sub">Create your account or log in to continue. We will send a <b>6-digit verification code</b> to your email.</p>
+      <p class="auth-sub">Create your account or log in to continue. We will verify your email with a <b>6-digit code</b>.</p>
       <form onsubmit="handleSendOTP(event)">
-        <input type="email" id="authEmail" class="auth-inp" placeholder="name@example.com" required autofocus autocomplete="email">
+        <label style="display:block;text-align:left;font-size:.85em;font-weight:700;color:#8b2500;margin-bottom:4px">Email Address</label>
+        <input type="email" id="authEmail" class="auth-inp" placeholder="name@example.com" value="${esc(_pendingEmail||'')}" required autofocus autocomplete="email">
+        
+        <label style="display:block;text-align:left;font-size:.85em;font-weight:700;color:#8b2500;margin-bottom:4px">Creator Username <span style="font-weight:400;color:#6b4c3b">(shown on your stories)</span></label>
+        <div style="position:relative;margin-bottom:14px">
+          <span style="position:absolute;left:12px;top:12px;color:#8b2500;font-weight:700;font-size:1.05em">@</span>
+          <input type="text" id="authUsername" class="auth-inp" placeholder="DragonSlayer99" value="${esc(_pendingUsername||'')}" style="padding-left:30px;margin-bottom:0" required maxlength="25" pattern="[a-zA-Z0-9_]{3,25}" title="3 to 25 letters, numbers, or underscores">
+        </div>
+        <div style="font-size:.78em;color:#6b4c3b;text-align:left;margin-bottom:14px">3-25 characters. Letters, numbers, and underscores only.</div>
+
         <button type="submit" class="btn" style="width:100%;padding:12px;font-size:1.05em;background:linear-gradient(135deg,#8b2500,#b8860b)">✉️ Send 6-Digit Code →</button>
       </form>
       <div style="margin-top:14px;font-size:.82em;color:#6b4c3b;line-height:1.4">
-        🔒 Your account is remembered permanently so you can sign in across all your devices.
+        💾 <b>Account Memory &amp; Cloud Save:</b> Your stories, progress, username, and stats are preserved permanently and synced across your devices.
       </div>
     `;
-    setTimeout(()=>{ const inp = document.getElementById('authEmail'); if(inp) inp.focus(); }, 100);
+    setTimeout(()=>{
+      const u = document.getElementById('authUsername');
+      const e = document.getElementById('authEmail');
+      if(e && !e.value) e.focus();
+      else if(u) u.focus();
+    }, 100);
   } else if(step === 'otp'){
     box.innerHTML = `
       <div style="font-size:2.4em;margin-bottom:6px">📬</div>
       <h2>Check Your Email</h2>
-      <p class="auth-sub">We sent a 6-digit verification code to<br><b style="color:#8b2500">${esc(_pendingEmail)}</b></p>
+      <p class="auth-sub">We sent a 6-digit verification code to<br><b style="color:#8b2500">${esc(_pendingEmail)}</b><br><span style="font-size:.9em;color:#6b4c3b">Creator Username: <b>@${esc(_pendingUsername||'')}</b></span></p>
       
       <div style="background:#fef3c7;border:1px dashed #b8860b;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85em;color:#92400e">
         <b>Simulation / Dispatch:</b> Your 6-digit code is <span style="font-size:1.25em;letter-spacing:2px;font-weight:700;color:#8b2500">${_pendingOTP}</span>
@@ -3447,7 +3611,7 @@ function openAuthModal(step){
         <button type="submit" class="btn" style="width:100%;padding:12px;font-size:1.05em;background:linear-gradient(135deg,#15803d,#16a34a)">✓ Verify &amp; Sign In</button>
       </form>
       <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:.85em">
-        <a href="javascript:void(0)" onclick="openAuthModal('email')" style="color:#6b4c3b;text-decoration:underline">← Change email</a>
+        <a href="javascript:void(0)" onclick="openAuthModal('email')" style="color:#6b4c3b;text-decoration:underline">← Change details</a>
         <a href="javascript:void(0)" onclick="resendOTP()" style="color:#8b2500;font-weight:700;text-decoration:underline">Resend code</a>
       </div>
     `;
@@ -3457,14 +3621,41 @@ function openAuthModal(step){
 
 function handleSendOTP(e){
   if(e) e.preventDefault();
-  const inp = document.getElementById('authEmail');
-  if(!inp) return;
-  const email = inp.value.trim().toLowerCase();
+  const inpEmail = document.getElementById('authEmail');
+  const inpUser = document.getElementById('authUsername');
+  if(!inpEmail || !inpUser) return;
+  const email = inpEmail.value.trim().toLowerCase();
+  let uname = inpUser.value.trim().replace(/^@/,'');
+
   if(!email || !email.includes('@')){
     toast('Please enter a valid email address');
+    inpEmail.focus();
     return;
   }
+  if(!uname || uname.length < 3){
+    toast('Username must be at least 3 characters long');
+    inpUser.focus();
+    return;
+  }
+  if(!/^[a-zA-Z0-9_]{3,25}$/.test(uname)){
+    toast('Username can only contain letters, numbers, and underscores (3-25 chars)');
+    inpUser.focus();
+    return;
+  }
+
+  // Check if username is taken by another email
+  const reg = getAccountRegistry();
+  const existingForEmail = reg[email];
+  for(const k in reg){
+    if(k.toLowerCase() !== email.toLowerCase() && reg[k].username && reg[k].username.toLowerCase() === uname.toLowerCase()){
+      toast('Username @' + uname + ' is already claimed. Please choose another.');
+      inpUser.focus();
+      return;
+    }
+  }
+
   _pendingEmail = email;
+  _pendingUsername = uname;
   _pendingOTP = String(Math.floor(100000 + Math.random() * 900000));
   openAuthModal('otp');
   toast('6-digit code sent to ' + email);
@@ -3525,15 +3716,23 @@ function handleVerifyOTP(e){
   const existing = reg[_pendingEmail] || {};
   const user = {
     email: _pendingEmail,
+    username: _pendingUsername || existing.username || _pendingEmail.split('@')[0],
     id: existing.id || uid(),
     createdAt: existing.createdAt || Date.now(),
-    lastLoginAt: Date.now()
+    lastLoginAt: Date.now(),
+    memory: existing.memory || null
   };
   saveToRegistry(_pendingEmail, user);
   saveAuthUser(user);
 
+  // Restore saved account state
+  restoreAccountMemory(user);
+  // Backup current state to account memory
+  backupAccountMemory(user.email);
+
   document.getElementById('authGate').style.display = 'none';
-  toast('Signed in as ' + user.email + ' ✅');
+  renderLib();renderList();renderEditor();
+  toast('Signed in as @' + user.username + ' (' + user.email + ') ✅');
 }
 
 function openAccountDetails(){
@@ -3541,23 +3740,89 @@ function openAccountDetails(){
     openAuthModal('email');
     return;
   }
-  showModal('👤 Your Account', `
-    <div style="text-align:center;padding:10px 0">
-      <div style="font-size:3em;margin-bottom:8px">👤</div>
-      <h3 style="color:#8b2500">${esc(currentUser.email)}</h3>
-      <p style="font-size:.85em;color:#6b4c3b;margin-top:4px">Account ID: ${esc(currentUser.id)}</p>
-      <div style="background:#fff8e7;border:1px solid #d4c4a8;border-radius:8px;padding:12px;margin:16px 0;text-align:left;font-size:.9em">
-        <div><b>Status:</b> ✅ Permanently Verified</div>
-        <div><b>Created:</b> ${new Date(currentUser.createdAt).toLocaleDateString()}</div>
-        <div><b>Multi-device:</b> Use this email on your other devices to sign in with your 6-digit code.</div>
+  const reg = getAccountRegistry();
+  const acct = reg[currentUser.email.toLowerCase()] || {};
+  const mem = acct.memory || currentUser.memory;
+  const memSavedStr = (mem && mem.savedAt) ? new Date(mem.savedAt).toLocaleString() : 'Just now';
+
+  showModal('👤 Your Account &amp; Save Memory', `
+    <div style="padding:4px 0">
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="font-size:3em;margin-bottom:4px">👤</div>
+        <h2 style="color:#8b2500;margin-bottom:2px">@${esc(currentUser.username || 'user')}</h2>
+        <div style="color:#6b4c3b;font-size:.92em">${esc(currentUser.email)}</div>
       </div>
-      <div style="display:flex;gap:10px;justify-content:center;margin-top:16px">
+
+      <div style="background:#fff8e7;border:1px solid #d4c4a8;border-radius:8px;padding:12px;margin-bottom:14px;font-size:.9em">
+        <div style="margin-bottom:6px"><b>Creator Username:</b> @${esc(currentUser.username || 'user')}</div>
+        <div style="margin-bottom:6px"><b>Account ID:</b> <span style="font-family:monospace;font-size:.9em">${esc(currentUser.id)}</span></div>
+        <div style="margin-bottom:6px"><b>Status:</b> ✅ Permanently Verified</div>
+        <div style="margin-bottom:6px"><b>Created:</b> ${new Date(currentUser.createdAt).toLocaleDateString()}</div>
+        <div><b>Multi-device:</b> Sign in with this email + 6-digit code on any device to load all your saved stories.</div>
+      </div>
+
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px;margin-bottom:16px;font-size:.9em">
+        <div style="font-weight:700;color:#166534;margin-bottom:4px">💾 Account Memory &amp; Cloud Save System</div>
+        <div style="font-size:.85em;color:#15803d;margin-bottom:8px">Last saved snapshot: <b>${esc(memSavedStr)}</b></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-green" style="padding:6px 12px;font-size:.85em" onclick="manualSaveAccountMemory()">💾 Save State Now</button>
+          <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="manualRestoreAccountMemory()">🔄 Restore From Memory</button>
+          <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="promptChangeUsername()">✏️ Change Username</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
         <button class="btn btn-sec" onclick="closeModal()">Close</button>
         <button class="btn btn-sec" onclick="logoutUser()">Log Out</button>
         <button class="btn btn-red" onclick="deleteAccountPermanent()">Delete Account</button>
       </div>
     </div>
   `);
+}
+
+function promptChangeUsername(){
+  const cur = currentUser ? (currentUser.username || '') : '';
+  const next = prompt('Enter your new Creator Username (letters, numbers, underscores):', cur);
+  if(!next) return;
+  const clean = next.trim().replace(/^@/,'');
+  if(!/^[a-zA-Z0-9_]{3,25}$/.test(clean)){
+    alert('Username must be 3-25 characters long and contain only letters, numbers, or underscores.');
+    return;
+  }
+  // Check collision
+  const reg = getAccountRegistry();
+  for(const k in reg){
+    if(k.toLowerCase() !== currentUser.email.toLowerCase() && reg[k].username && reg[k].username.toLowerCase() === clean.toLowerCase()){
+      alert('That username is already taken by another account.');
+      return;
+    }
+  }
+  currentUser.username = clean;
+  saveToRegistry(currentUser.email, currentUser);
+  saveAuthUser(currentUser);
+  backupAccountMemory(currentUser.email);
+  // Also update author on owned stories in library
+  library.forEach(s => {
+    if(s._owned) s.author = clean;
+  });
+  saveLib();renderLib();
+  toast('Creator username updated to @' + clean + ' ✅');
+  openAccountDetails();
+}
+
+function manualSaveAccountMemory(){
+  if(!currentUser) return;
+  backupAccountMemory(currentUser.email);
+  toast('Account memory saved successfully! 💾');
+  openAccountDetails();
+}
+
+function manualRestoreAccountMemory(){
+  if(!currentUser) return;
+  restoreAccountMemory(currentUser);
+  renderLib();renderList();renderEditor();
+  toast('Account memory restored! 🔄');
+  closeModal();
 }
 
 function logoutUser(){
