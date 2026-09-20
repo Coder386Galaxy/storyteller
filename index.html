@@ -3210,52 +3210,251 @@ const LS_OAI='sf_openai';
 function getOAI(){try{return JSON.parse(localStorage.getItem(LS_OAI))||{};}catch(e){return {};}}
 function openSettings(msg){
   const cfg=getOAI();
-  showModal('\u2699 Settings',`
-   ${msg?`<p style="color:#8b2500;margin-bottom:8px;font-size:.9em">${esc(msg)}</p>`:''}
-   <label style="display:block;font-weight:700;margin-bottom:4px">OpenAI API key</label>
-   <input type="password" id="oaiKey" value="${esc(cfg.key||'')}" placeholder="sk-..." style="width:100%;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:9px" autocomplete="off">
-   <label style="display:block;font-weight:700;margin:10px 0 4px">Model</label>
-   <input type="text" id="oaiModel" value="${esc(cfg.model||'gpt-5.4')}" style="width:100%;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:9px" autocomplete="off">
-   <p style="font-size:.8em;color:#6b4c3b;margin-top:10px">Your key is stored only in this browser and sent only to api.openai.com. Note: the in-chat preview sandbox blocks outside APIs \u2014 use the downloaded file or real hosting for the AI Editor.</p>
-   <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
-     ${cfg.key?'<button class="btn btn-red" onclick="removeOAI()">Remove key</button>':''}
-     <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
-     <button class="btn" onclick="saveOAISettings()">Save</button>
-   </div>`);
-}
-function saveOAISettings(){
-  const k=document.getElementById('oaiKey').value.trim();
-  const m=document.getElementById('oaiModel').value.trim()||'gpt-5.4';
-  try{localStorage.setItem(LS_OAI,JSON.stringify({key:k,model:m}));}catch(e){}
-  closeModal();toast(k?'Settings saved \u2014 AI Editor ready \ud83e\udd16':'Saved (no API key set)');
-}
-function removeOAI(){try{localStorage.removeItem(LS_OAI);}catch(e){}closeModal();toast('API key removed');}
+  const hasConfirmedKey = !!(cfg.key && cfg.key.trim().length > 5);
+  const curComplexity = cfg.complexity || 'Normal';
 
+  if(!hasConfirmedKey){
+    // Initial key setup modal
+    showModal('🔑 Connect AI Storyteller',`
+      ${msg?`<p style="color:#8b2500;margin-bottom:10px;font-size:.92em;background:#fee2e2;padding:8px 10px;border-radius:6px">⚠️ ${esc(msg)}</p>`:''}
+      <div style="margin-bottom:14px;font-size:.92em;color:#6b4c3b;line-height:1.5">
+        Enter your OpenAI API key below. Once confirmed, Storyteller will permanently remember it on this device until you decide to change or clear it.
+      </div>
+      <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">OpenAI API Key</label>
+      <input type="password" id="oaiKey" value="${esc(cfg.key||'')}" placeholder="sk-..." style="width:100%;background:#fff;border:2px solid #b8860b;border-radius:6px;padding:10px;font-family:monospace;font-size:1em" autocomplete="off">
+      
+      <label style="display:block;font-weight:700;color:#8b2500;margin:12px 0 4px">AI Complexity Level</label>
+      <div style="display:flex;gap:8px">
+        <label style="flex:1;background:#fff;border:2px solid #d4c4a8;border-radius:6px;padding:8px;text-align:center;cursor:pointer">
+          <input type="radio" name="oaiComplexity" value="Simple" ${curComplexity==='Simple'?'checked':''}>
+          <div style="font-weight:700;font-size:.9em">Simple</div>
+          <div style="font-size:.75em;color:#6b4c3b">Concise &amp; direct</div>
+        </label>
+        <label style="flex:1;background:#fff;border:2px solid #b8860b;border-radius:6px;padding:8px;text-align:center;cursor:pointer">
+          <input type="radio" name="oaiComplexity" value="Normal" ${curComplexity==='Normal'?'checked':''}>
+          <div style="font-weight:700;font-size:.9em;color:#8b2500">Normal</div>
+          <div style="font-size:.75em;color:#6b4c3b">Standard flow</div>
+        </label>
+        <label style="flex:1;background:#fff;border:2px solid #d4c4a8;border-radius:6px;padding:8px;text-align:center;cursor:pointer">
+          <input type="radio" name="oaiComplexity" value="Complex" ${curComplexity==='Complex'?'checked':''}>
+          <div style="font-weight:700;font-size:.9em">Complex</div>
+          <div style="font-size:.75em;color:#6b4c3b">Deep branching</div>
+        </label>
+      </div>
+
+      <div style="margin-top:14px;font-size:.8em;color:#6b4c3b;line-height:1.4">
+        🔒 Your key stays strictly in your local device storage.
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+        <button class="btn" style="background:linear-gradient(135deg,#15803d,#16a34a)" onclick="confirmOAISettings()">✓ Confirm &amp; Save Key</button>
+      </div>`);
+    setTimeout(()=>{ const k = document.getElementById('oaiKey'); if(k) k.focus(); }, 100);
+    return;
+  }
+
+  // Confirmed key state: brings you straight into AI Settings
+  const maskedKey = cfg.key.slice(0, 3) + '••••••••••••••••' + cfg.key.slice(-4);
+  showModal('⚙️ AI Settings &amp; Engine',`
+    ${msg?`<p style="color:#8b2500;margin-bottom:10px;font-size:.92em">${esc(msg)}</p>`:''}
+    
+    <div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:12px 14px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <span style="font-size:.8em;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:1px">✓ Active API Key Remembered</span>
+          <div style="font-family:monospace;font-size:1em;color:#15803d;font-weight:700;margin-top:2px">${esc(maskedKey)}</div>
+        </div>
+        <button class="btn btn-sec" style="font-size:.8em;padding:4px 8px" onclick="promptChangeAPIKey()">Change Key</button>
+      </div>
+    </div>
+
+    <label style="display:block;font-weight:800;color:#8b2500;margin-bottom:6px;font-size:.95em">🤖 AI Story Complexity</label>
+    <div style="display:flex;gap:10px;margin-bottom:16px">
+      <label style="flex:1;background:#fff;border:2px solid ${curComplexity==='Simple'?'#15803d':'#d4c4a8'};border-radius:8px;padding:10px 8px;text-align:center;cursor:pointer">
+        <input type="radio" name="oaiComplexity" value="Simple" ${curComplexity==='Simple'?'checked':''} onchange="selectComplexity('Simple')">
+        <div style="font-weight:800;font-size:1em;color:#15803d;margin-top:3px">Simple</div>
+        <div style="font-size:.76em;color:#6b4c3b;margin-top:4px">Short paragraphs, clear choices, easy progression.</div>
+      </label>
+      <label style="flex:1;background:#fff;border:2px solid ${curComplexity==='Normal'?'#b8860b':'#d4c4a8'};border-radius:8px;padding:10px 8px;text-align:center;cursor:pointer">
+        <input type="radio" name="oaiComplexity" value="Normal" ${curComplexity==='Normal'?'checked':''} onchange="selectComplexity('Normal')">
+        <div style="font-weight:800;font-size:1em;color:#8b2500;margin-top:3px">Normal</div>
+        <div style="font-size:.76em;color:#6b4c3b;margin-top:4px">Balanced descriptions, branching paths &amp; dialogue.</div>
+      </label>
+      <label style="flex:1;background:#fff;border:2px solid ${curComplexity==='Complex'?'#7c3aed':'#d4c4a8'};border-radius:8px;padding:10px 8px;text-align:center;cursor:pointer">
+        <input type="radio" name="oaiComplexity" value="Complex" ${curComplexity==='Complex'?'checked':''} onchange="selectComplexity('Complex')">
+        <div style="font-weight:800;font-size:1em;color:#6d28d9;margin-top:3px">Complex</div>
+        <div style="font-size:.76em;color:#6b4c3b;margin-top:4px">Intricate narrative, cunning puzzles, deep branching.</div>
+      </label>
+    </div>
+
+    <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">AI Model</label>
+    <input type="text" id="oaiModel" value="${esc(cfg.model||'gpt-5.4')}" style="width:100%;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:8px 10px;font-size:.95em" autocomplete="off">
+    <div style="font-size:.78em;color:#6b4c3b;margin-top:4px">Default: <b>gpt-5.4</b> (supports gpt-5.4, gpt-4.5, gpt-4o, etc.)</div>
+
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:20px;flex-wrap:wrap">
+      <button class="btn btn-red" style="font-size:.85em;padding:6px 12px" onclick="removeOAI()">Forget / Disconnect Key</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-sec" onclick="closeModal()">Close</button>
+        <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);padding:7px 18px" onclick="saveAISettings()">Save Changes</button>
+      </div>
+    </div>
+  `);
+}
+
+function selectComplexity(lvl){
+  const cfg = getOAI();
+  cfg.complexity = lvl;
+  try{ localStorage.setItem(LS_OAI, JSON.stringify(cfg)); }catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function') backupAccountMemory();
+}
+
+function confirmOAISettings(){
+  const k = document.getElementById('oaiKey').value.trim();
+  if(!k){ toast('Please paste your OpenAI API key'); return; }
+  const rad = document.querySelector('input[name="oaiComplexity"]:checked');
+  const comp = rad ? rad.value : 'Normal';
+  const cfg = {
+    key: k,
+    model: 'gpt-5.4',
+    complexity: comp,
+    confirmedAt: Date.now()
+  };
+  try{ localStorage.setItem(LS_OAI, JSON.stringify(cfg)); }catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function') backupAccountMemory();
+  closeModal();
+  toast('API Key confirmed & saved permanently! Opening AI Settings...');
+  setTimeout(() => { openSettings(); }, 350);
+}
+
+function promptChangeAPIKey(){
+  const cfg = getOAI();
+  const next = prompt('Enter your new OpenAI API key (sk-...):', cfg.key || '');
+  if(next === null) return;
+  const clean = next.trim();
+  if(!clean){ toast('Key cannot be empty'); return; }
+  cfg.key = clean;
+  cfg.confirmedAt = Date.now();
+  try{ localStorage.setItem(LS_OAI, JSON.stringify(cfg)); }catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function') backupAccountMemory();
+  toast('API key updated and remembered! ✅');
+  openSettings();
+}
+
+function saveAISettings(){
+  const cfg = getOAI();
+  const m = document.getElementById('oaiModel').value.trim() || 'gpt-5.4';
+  const rad = document.querySelector('input[name="oaiComplexity"]:checked');
+  if(rad) cfg.complexity = rad.value;
+  cfg.model = m;
+  try{ localStorage.setItem(LS_OAI, JSON.stringify(cfg)); }catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function') backupAccountMemory();
+  closeModal();
+  toast('AI Settings updated (' + (cfg.complexity||'Normal') + ' Complexity) ✅');
+}
+
+function removeOAI(){
+  if(!confirm('Forget this API key from this browser?')) return;
+  try{ localStorage.removeItem(LS_OAI); }catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function') backupAccountMemory();
+  closeModal();
+  toast('API key removed');
+}
 // ================= AI STORY EDITOR CHAT (GPT-5.4) =================
 let _chatMsgs=[]; // API history {role,content}
 let _chatBusy=false;
+let _chatIntent = 'work'; // 'work' | 'make' | 'edit'
+
 function openChat(){
   const cfg=getOAI();
-  if(!cfg.key){openSettings('The AI Editor needs your OpenAI API key.');return;}
+  if(!cfg.key){
+    openSettings('The AI Editor needs your OpenAI API key before chatting.');
+    return;
+  }
   let p=document.getElementById('aiChat');
-  if(p){p.style.display='flex';return;}
-  p=document.createElement('div');p.id='aiChat';
-  p.style.cssText='position:fixed;right:12px;bottom:12px;width:min(400px,calc(100vw - 24px));height:min(580px,calc(100vh - 24px));background:#f4ecd8;border:3px solid #b8860b;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.45);z-index:1300;display:flex;flex-direction:column;overflow:hidden';
-  p.innerHTML=`<div style="background:linear-gradient(135deg,#2c1810,#4a2c1a);color:#f4ecd8;padding:10px 14px;display:flex;align-items:center;gap:8px">
-    <span style="font-size:1.2em">\ud83e\udd16</span><b style="flex:1">AI Story Editor</b>
-    <button class="btn btn-sec" style="padding:2px 9px;font-size:.8em" onclick="clearChat()" title="Clear conversation">\ud83d\udddd</button>
-    <button class="btn btn-sec" style="padding:2px 9px;font-size:.8em" onclick="closeChat()">\u2715</button>
-  </div>
-  <div id="chatMsgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
-  <div style="padding:10px;border-top:2px solid #d4c4a8;display:flex;gap:6px;background:#faf3e3">
-    <input id="chatIn" placeholder='e.g. "add a scene where you find a key"...' style="flex:1;background:#fff;border:1px solid #d4c4a8;border-radius:8px;padding:9px 11px" onkeydown="if(event.key==='Enter')sendChat()">
-    <button class="btn" onclick="sendChat()" id="chatSend">\u27a4</button>
-  </div>`;
-  document.body.appendChild(p);
-  if(!_chatMsgs.length)addBubble('ai','Hi! I can edit your story. Try:\u2022 "add a scene where you find a hidden key"\u2022 "make the ending a victory"\u2022 "delete the scene called <label>"\u2022 "add a scary choice to <scene>"\nWhat should we change?');
+  if(!p){
+    p=document.createElement('div');p.id='aiChat';
+    p.style.cssText='position:fixed;right:12px;bottom:12px;width:min(420px,calc(100vw - 24px));height:min(600px,calc(100vh - 24px));background:#f4ecd8;border:3px solid #b8860b;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.45);z-index:1300;display:flex;flex-direction:column;overflow:hidden';
+    p.innerHTML=`<div style="background:linear-gradient(135deg,#2c1810,#4a2c1a);color:#f4ecd8;padding:10px 14px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:1.2em">🤖</span><b style="flex:1">AI Story Assistant</b>
+      <button class="btn btn-sec" style="padding:2px 8px;font-size:.78em" onclick="openSettings()" title="AI Settings">⚙️</button>
+      <button class="btn btn-sec" style="padding:2px 9px;font-size:.8em" onclick="clearChat()" title="Reset chat">🗑</button>
+      <button class="btn btn-sec" style="padding:2px 9px;font-size:.8em" onclick="closeChat()">✕</button>
+    </div>
+    <div id="chatMsgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
+    <div style="padding:10px;border-top:2px solid #d4c4a8;display:flex;gap:6px;background:#faf3e3">
+      <input id="chatIn" placeholder='Type your request or choice here...' style="flex:1;background:#fff;border:1px solid #d4c4a8;border-radius:8px;padding:9px 11px;font-size:.92em" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="btn" onclick="sendChat()" id="chatSend">➤</button>
+    </div>`;
+    document.body.appendChild(p);
+  }
+  p.style.display='flex';
+
+  if(!_chatMsgs.length){
+    showChatIntentPicker();
+  }
 }
+
+function showChatIntentPicker(){
+  const m=document.getElementById('chatMsgs');if(!m)return;
+  m.innerHTML='';
+  _chatMsgs=[];
+  const cfg=getOAI();
+  const comp=cfg.complexity||'Normal';
+
+  const welcomeBubble=document.createElement('div');
+  welcomeBubble.className='chat-bub ai';
+  welcomeBubble.innerHTML=`
+    <div style="font-weight:700;font-size:1.05em;color:#8b2500;margin-bottom:6px">👋 What do you want to do in this chat?</div>
+    <div style="font-size:.85em;color:#6b4c3b;margin-bottom:12px">AI Complexity: <b>${esc(comp)}</b>. Please pick your goal to get started:</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn" style="background:linear-gradient(135deg,#8b2500,#b8860b);text-align:left;padding:10px 12px;font-size:.9em;display:flex;align-items:center;gap:8px" onclick="selectChatIntent('work')">
+        <span style="font-size:1.3em">✍️</span>
+        <div><b>Work on the story</b><div style="font-size:.8em;opacity:.9">Add new chapters, write prose, expand lore &amp; continue.</div></div>
+      </button>
+      <button class="btn" style="background:linear-gradient(135deg,#15803d,#16a34a);text-align:left;padding:10px 12px;font-size:.9em;display:flex;align-items:center;gap:8px" onclick="selectChatIntent('make')">
+        <span style="font-size:1.3em">🚀</span>
+        <div><b>Make a CYOP</b><div style="font-size:.8em;opacity:.9">Generate a brand new Choose Your Own Path adventure from scratch.</div></div>
+      </button>
+      <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);text-align:left;padding:10px 12px;font-size:.9em;display:flex;align-items:center;gap:8px" onclick="selectChatIntent('edit')">
+        <span style="font-size:1.3em">🔧</span>
+        <div><b>Edit a CYOA</b><div style="font-size:.8em;opacity:.9">Tweak branches, add choices, balance endings, or modify scenes.</div></div>
+      </button>
+    </div>
+  `;
+  m.appendChild(welcomeBubble);
+  m.scrollTop=m.scrollHeight;
+}
+
+function selectChatIntent(intent){
+  _chatIntent = intent;
+  const cfg = getOAI();
+  const comp = cfg.complexity || 'Normal';
+  let greeting = '';
+
+  if(intent === 'work'){
+    greeting = `Great! We will **Work on the story** (${comp} Complexity). Tell me where you would like to take the narrative next, or ask me to write the next passage!`;
+  } else if(intent === 'make'){
+    greeting = `Awesome! Let us **Make a CYOP** (${comp} Complexity). What is your adventure idea or theme? (e.g. "A spaceship stranded near a black hole" or "A hidden dungeon underneath a castle")`;
+  } else {
+    greeting = `Ready to **Edit a CYOA** (${comp} Complexity). Which scene or choice do you want to modify? You can say things like: "make choice B lead to a victory", "add a hidden secret room", or "fix any dead ends".`;
+  }
+
+  const m=document.getElementById('chatMsgs');
+  if(m){
+    addBubble('me', intent==='work'?'Work on the story':(intent==='make'?'Make a CYOP':'Edit a CYOA'));
+    addBubble('ai', greeting);
+    _chatMsgs.push(
+      {role:'assistant', content:'What do you want to do in this chat? Options: Work on the story, Make a CYOP, or Edit a CYOA.'},
+      {role:'user', content: intent==='work'?'Work on the story':(intent==='make'?'Make a CYOP':'Edit a CYOA')},
+      {role:'assistant', content: greeting}
+    );
+  }
+  const inp=document.getElementById('chatIn');
+  if(inp) inp.focus();
+}
+
 function closeChat(){const p=document.getElementById('aiChat');if(p)p.style.display='none';}
-function clearChat(){_chatMsgs=[];const m=document.getElementById('chatMsgs');if(m)m.innerHTML='';addBubble('ai','Fresh start \u2014 what should we change?');}
+function clearChat(){_chatMsgs=[];showChatIntentPicker();}
 function addBubble(role,text){
   const m=document.getElementById('chatMsgs');if(!m)return;
   const d=document.createElement('div');d.className='chat-bub '+role;d.textContent=text;
@@ -3266,7 +3465,24 @@ function storyContext(){
   return JSON.stringify({storyTitle:(document.getElementById('storyTitle')||{}).value||'(untitled)',passages:list});
 }
 function sysPrompt(){
-  return 'You are the AI story editor inside Storyteller CYOP, a choose-your-own-path builder. The user will ask for changes to their story. Current story JSON:\n'+storyContext()+
+  const cfg = getOAI();
+  const comp = cfg.complexity || 'Normal';
+  let complexityGuide = 'Complexity: Normal. Balanced descriptions with 2-3 branches.';
+  if(comp === 'Simple'){
+    complexityGuide = 'Complexity: Simple. Keep passages concise, direct, easy for young readers, 2 straightforward choices with clear outcomes.';
+  } else if(comp === 'Complex'){
+    complexityGuide = 'Complexity: Complex. Write vivid, atmospheric descriptions, intricate branching with multiple paths, puzzle clues, and deep lore.';
+  }
+
+  let intentGuide = 'Intent: The user is working on their story.';
+  if(_chatIntent === 'make'){
+    intentGuide = 'Intent: The user wants to Make a CYOP from scratch. If they give an idea or prompt, generate multiple connected passages (start, branches, victory, and death) to form a complete interactive story.';
+  } else if(_chatIntent === 'edit'){
+    intentGuide = 'Intent: The user is editing an existing CYOA. Carefully modify passages, add or alter choices, and tune endings to polish their interactive adventure.';
+  }
+
+  return 'You are the AI Story Assistant inside Storyteller CYOP, an interactive choose-your-own-path builder.\n' +
+  intentGuide + '\n' + complexityGuide + '\nCurrent story JSON:\n' + storyContext() +
   '\nRespond ONLY with a JSON object: {"reply":"<short friendly confirmation with what you changed>","actions":[...]}. Available actions (reference passages by their label):\n'+
   '{"action":"add_passage","title":"label","text":"scene text","type":"normal|continue|death|victory","contTarget":"label of next scene (for continue type)"}\n'+
   '{"action":"update_passage","passage":"label","title":"new label (optional)","text":"new text (optional)","type":"new type (optional)"}\n'+
