@@ -1598,6 +1598,7 @@ function loadLib(){
     if(typeof s.plays!=='number')s.plays=0;
     if(typeof s.firstTryWins!=='number')s.firstTryWins=0;
     if(s._owned!==false&&!s._community&&!s._imported)s._owned=true;
+    if(typeof s._private!=='boolean')s._private=false;
   });
 }
 function fixOwnedStats(){
@@ -1785,6 +1786,18 @@ function openPub(step){
         ${chips?`<div style="font-size:.8em;color:#6b4c3b;margin:6px 0 2px">Click to add an existing series:</div>${chips}`:''}
         <div style="font-size:.8em;color:#6b4c3b;margin-top:4px">Tip: you can add this story to multiple series by separating them with commas (e.g. <em>Darkwood, Halloween Specials</em>).</div>
 
+        <label style="font-weight:700;color:#8b2500;margin-top:14px">Visibility</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <label style="flex:1;min-width:180px;display:flex;gap:8px;align-items:flex-start;background:#fff8e7;border:2px solid #15803d;border-radius:8px;padding:10px;cursor:pointer">
+            <input type="radio" name="pubVis" id="pubVisPublic" value="public" checked style="margin-top:3px">
+            <div><b style="color:#15803d">🌐 Public</b><div style="font-size:.82em;color:#6b4c3b">Anyone with a share code or link can play this story.</div></div>
+          </label>
+          <label style="flex:1;min-width:180px;display:flex;gap:8px;align-items:flex-start;background:#fff8e7;border:2px solid #6b4c3b;border-radius:8px;padding:10px;cursor:pointer">
+            <input type="radio" name="pubVis" id="pubVisPrivate" value="private" style="margin-top:3px">
+            <div><b style="color:#6b4c3b">🔒 Private</b><div style="font-size:.82em;color:#6b4c3b">Only you can open it. Share codes won't work for others.</div></div>
+          </label>
+        </div>
+
         <div style="display:flex;gap:10px;margin-top:22px;justify-content:flex-end;flex-wrap:wrap">
           <button class="btn btn-sec" onclick="closePub()">Cancel</button>
           <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.05em;padding:11px 22px" onclick="pubAnalyze()">🤖 AI Analyze &amp; Publish →</button>
@@ -1823,6 +1836,9 @@ function openPub(step){
     const vics=Object.values(pubData.snapshot.passages).filter(p=>p.type==='victory').length;
     const schoolBadge=r.schoolFriendly?`<div style="margin-top:14px;text-align:center"><span class="rb school" style="font-size:.95em;padding:6px 14px">🏫 SCHOOL-FRIENDLY ✓</span><div style="font-size:.8em;color:#2563eb;margin-top:4px">Safe to read and write in class — no inappropriate content</div></div>`:'';
     const seriesLine=pubData.series?`<div style="margin-top:10px;font-size:.9em;color:#6b4c3b"><b>📚 Series:</b> ${pubData.series.split(/[,;]/).map(s=>`<span class="rb" style="background:#fde68a;color:#78350f;margin:0 4px 4px 0;display:inline-block">${esc(s.trim())}</span>`).join('')}</div>`:'';
+    const privacyLine=pubData.isPrivate
+      ?`<div style="margin-top:8px;font-size:.9em;color:#6b4c3b"><b>🔒 Private:</b> Only you can open this. Use the 👁 button on the card to make it public before sharing.</div>`
+      :`<div style="margin-top:8px;font-size:.9em;color:#15803d"><b>🌐 Public:</b> You can share it using the 🔗 button on its card.</div>`;
     box.innerHTML=`
       <button class="pub-x" onclick="closePub()">✕</button>
       <h2>✅ Published!</h2>
@@ -1832,6 +1848,7 @@ function openPub(step){
           <div style="font-weight:700;color:#8b2500;font-size:1.1em">${esc(pubData.title)}</div>
           <div style="color:#6b4c3b;font-size:.9em;margin-top:4px">${esc(pubData.description)}</div>
           ${seriesLine}
+          ${privacyLine}
         </div>
         <div class="rating-card ${r.r.color}">
           <div style="font-size:.85em;text-transform:uppercase;letter-spacing:2px;opacity:.7">AI Age Rating</div>
@@ -1878,6 +1895,8 @@ function pubAnalyze(){
     .map(s=>s.trim())
     .filter(Boolean)
     .filter(s=>{const k=s.toLowerCase();if(seen.has(k))return false;seen.add(k);return true;});
+  const priv=document.getElementById('pubVisPrivate');
+  pubData.isPrivate=!!(priv&&priv.checked);
   pubData.title=title;
   pubData.description=desc;
   pubData.series=seriesList.join(', ');
@@ -1946,6 +1965,7 @@ function finishPublish(){
     publishedAt:pubData.publishedAt,
     plays:0,
     firstTryWins:0,
+    _private:!!pubData.isPrivate,
     _seeded:false,
     _owned:true,
     _community:false
@@ -1955,6 +1975,37 @@ function finishPublish(){
   openPub('step3');
 }
 
+function togglePrivate(id){
+  const i=findLibIdx(id);if(i<0)return;
+  const s=library[i];
+  s._private=!s._private;
+  saveLib();renderLib();
+  toast(s._private?'Marked private — others can\u2019t open shared links to this story':'Now public — you can share this story');
+}
+function removeImported(id){
+  // Remove an imported community story (from share codes / ?story= URLs)
+  const arr=getImported();
+  const idx=arr.findIndex(x=>x.id===id);
+  if(idx>=0){
+    if(!confirm('Remove this community story from your Library?'))return;
+    arr.splice(idx,1);saveImported(arr);
+    updateLibCount();renderLib();toast('Removed from Community Adventures');
+    return;
+  }
+  // Also remove if it got saved into personal library via +Add
+  const li=library.findIndex(x=>x.id===id&&x._community);
+  if(li>=0){
+    if(!confirm('Remove this community story from your Library?'))return;
+    library.splice(li,1);saveLib();updateLibCount();renderLib();toast('Removed');
+  }
+}
+function deletePublishedId(id){
+  const i=findLibIdx(id);if(i<0)return;
+  if(!confirm('Delete "'+library[i].title+'" from your library? This cannot be undone.'))return;
+  // Also scrub from played tracker so it doesn't come back
+  delete playedTracker[id];savePlayed();
+  library.splice(i,1);saveLib();updateLibCount();renderLib();toast('Deleted');
+}
 function renderLib(){
   const mine=document.getElementById('libList');
   const comm=document.getElementById('commList');
@@ -2028,7 +2079,12 @@ function libCard(s){
   const locked=!canViewRating(s.rating.score);
   const min=MIN_AGE[s.rating.score]||0;
   const ageBadge=userAge>=0?' (You are '+userAge+')':'';
-  const clickFn=locked?"event.stopPropagation();showLockedMsg('"+s.id+"')":"readPublishedId('"+s.id+"')";
+  const isPrivate=!!s._private;
+  // Private cards aren't clickable to open; locked (age) cards show age gate
+  let clickFn="event.stopPropagation();";
+  if(isPrivate)clickFn+="showPrivateMsg('"+s.id+"')";
+  else if(locked)clickFn+="showLockedMsg('"+s.id+"')";
+  else clickFn="readPublishedId('"+s.id+"')";
   // Multi-series: show first series name + count, or "Standalone"
   const seriesName=(s.series?String(s.series).split(/[,;]/)[0].trim():'');
   const seriesExtra=(s.series&&String(s.series).split(/[,;]/).length>1?' +'+(String(s.series).split(/[,;]/).length-1):'');
@@ -2037,8 +2093,21 @@ function libCard(s){
     ?'<span class="lstat" style="color:#6b4c3b">🌟 <b>New</b> — not played yet</span>'
     :'<span class="lstat">👥 <b>'+plays.toLocaleString()+'</b> played</span>'
      +'<span class="lstat '+pctCls+'">🏆 <b>'+wins.toLocaleString()+'</b> beat it first try <span class="lspct">('+pct+'%)</span></span>';
-  return '<div class="lib-card" data-storyid="'+s.id+'" style="position:relative;'+(locked?'opacity:.75;':'')+'" onclick="'+clickFn+'">'
-    +'<div class="lt">'+(locked?'🔒 ':'')+esc(s.title)+'</div>'
+  const privateBadge=isPrivate?'<span class="rb" style="background:#4b5563;color:#fff" title="Private — only you can open this">🔒 Private</span>':'';
+  let buttons='<span style="flex:1"></span>';
+  if(s._owned && !s._community){
+    if(!isPrivate){
+      buttons+='<button class="xbtn" onclick="event.stopPropagation();shareStoryId(\''+s.id+'\')" title="Share this story (get a code to send to a friend)">🔗</button>';
+    }else{
+      buttons+='<button class="xbtn" onclick="event.stopPropagation();toast(\'This story is private — make it public to share.\')" title="Private — cannot share" style="opacity:.4;cursor:not-allowed">🔗</button>';
+    }
+    buttons+='<button class="xbtn" onclick="event.stopPropagation();togglePrivate(\''+s.id+'\')" title="'+(isPrivate?'Make public (anyone with a link can play)':'Make private (only you can open)')+'">'+(isPrivate?'👁':'🙈')+'</button>';
+    buttons+='<button class="xbtn" onclick="event.stopPropagation();deletePublishedId(\''+s.id+'\')" title="Delete story permanently">🗑</button>';
+  }else if(s._community||s._imported){
+    buttons+='<button class="xbtn" onclick="event.stopPropagation();removeImported(\''+s.id+'\')" title="Remove from Community Adventures" style="color:#6b4c3b">✕</button>';
+  }
+  return '<div class="lib-card" data-storyid="'+s.id+'" style="position:relative;'+(locked||isPrivate?'opacity:.85;':'')+'" onclick="'+clickFn+'">'
+    +'<div class="lt">'+esc(s.title)+'</div>'
     +'<div class="ls">'+seriesBit+passCount+' passages · published '+esc(dateStr)+'</div>'
     +'<div class="ld">'+esc(s.description||'No description.')+'</div>'
     +'<div class="lmeta">'
@@ -2046,19 +2115,26 @@ function libCard(s){
       +(s.rating.schoolFriendly?'<span class="rb school" title="School-friendly — appropriate for class">🏫 School</span>':'')
       +(s.author?'<span class="rb" style="background:#e7d8b8;color:#4a2c1a" title="Author">✍️ '+esc(s.author)+'</span>':'')
       +(s._community?'<span class="rb" style="background:#fde68a;color:#78350f">🌟 Community</span>':'')
-      +'<span style="flex:1"></span>'
-      +(!s._community?'<button class="xbtn" onclick="event.stopPropagation();shareStoryId(\''+s.id+'\')" title="Share this story (get a code to send to a friend)">🔗</button>':'')
-      +(s._owned?'<button class="xbtn" onclick="event.stopPropagation();deletePublishedId(\''+s.id+'\')" title="Delete">🗑</button>':'')
+      +privateBadge
+      +buttons
     +'</div>'
     +'<div class="lstats">'+statsHtml+'</div>'
-    +'</div>'
+    +(isPrivate?'<div style="position:absolute;inset:0;background:rgba(44,24,16,.72);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f4ecd8;text-align:center;padding:20px;gap:10px;cursor:pointer" onclick="event.stopPropagation();showPrivateMsg(\''+s.id+'\')"><div style="font-size:2.5em">🔒</div><div style="font-weight:700">Private</div><div style="font-size:.85em;opacity:.9">Only you can see this. Tap 👁 to make public.</div></div>':'')
     +(locked?'<div style="position:absolute;inset:0;background:rgba(44,24,16,.82);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#f4ecd8;text-align:center;padding:20px;gap:8px;cursor:pointer" onclick="event.stopPropagation();showLockedMsgById(this.closest(\'.lib-card\').dataset.storyid)" data-storyid="'+s.id+'"><div style="font-size:2.5em">🔒</div><div style="font-weight:700">'+r.code+' — Ages '+min+'+</div><div style="font-size:.82em;opacity:.85">You must be '+min+'+ to read this.'+ageBadge+'</div><div style="margin-top:6px;font-size:.75em;text-decoration:underline">Details</div></div>':'')
   +'</div>';
 }
-function deletePublishedId(id){
-  const i=findLibIdx(id);if(i<0)return;
-  if(!confirm('Delete "'+library[i].title+'" from your library?'))return;
-  library.splice(i,1);saveLib();updateLibCount();renderLib();toast('Deleted');
+function showPrivateMsg(id){
+  showModal('🔒 Private Story',
+    `<div style="text-align:center">
+      <div style="font-size:3em;margin-bottom:8px">🔒</div>
+      <h3 style="color:#8b2500;border:none;margin-bottom:8px">This story is private</h3>
+      <p>You marked this story as private. Only you can open it, and share codes won't work for other people.</p>
+      <p style="font-size:.85em;color:#6b4c3b;margin-top:8px">To make it public again, click the 👁 button on the story card.</p>
+      <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="btn btn-sec" onclick="closeModal()">Okay</button>
+        <button class="btn btn-gold" onclick="closeModal();togglePrivate('${id}')">👁 Make public</button>
+      </div>
+    </div>`);
 }
 function readPublishedId(id){
   closePub();
@@ -2513,6 +2589,8 @@ function shareStoryId(id){
   const found=findAnyStory(id);
   if(!found)return;
   const s=found.story;
+  // Private stories can't be shared
+  if(s._private){toast('This story is private — make it public first (👁) to share.');return;}
   const code=b64encode({t:s.title,d:s.description,se:s.series,r:s.rating.score,a:s.author||'',p:s.story.passages});
   const url=location.origin+location.pathname+'?story='+code;
   // Copy and show
