@@ -202,10 +202,10 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 .fbtn.on{background:#15803d;border-color:#15803d}
 .fbtn.on.down{background:#991b1b;border-color:#991b1b}
 .fbtn.on:after{content:' 1';font-size:.75em;font-weight:700}
-.chat-bub{max-width:85%;padding:9px 12px;border-radius:12px;font-size:.92em;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
-.chat-bub.ai{background:#fff;border:1px solid #d4c4a8;border-bottom-left-radius:4px;align-self:flex-start}
-.chat-bub.me{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
-.chat-bub.err{background:#fde8e8;border:1px solid #991b1b;color:#7f1d1d;align-self:center;font-size:.85em}
+.chat-bub{max-width:85%;padding:10px 14px;border-radius:14px;font-size:.92em;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.chat-bub.ai{background:#2f2f2f;color:#ececec;border:1px solid #3e3e3e;border-bottom-left-radius:4px;align-self:flex-start;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.chat-bub.me{background:#10a37f;color:#ffffff;border:none;border-bottom-right-radius:4px;align-self:flex-end;box-shadow:0 2px 8px rgba(16,163,127,.3);font-weight:500}
+.chat-bub.err{background:#3f1a1a;border:1px solid #ef4444;color:#fca5a5;align-self:center;font-size:.85em}
 .lgrow{display:flex;gap:10px;align-items:flex-start;background:#fff;border:2px solid #991b1b;border-radius:10px;padding:12px;margin-top:18px;cursor:pointer;user-select:none}
 .lgrow:hover{border-color:#8b2500}
 .lgrow input{position:absolute;opacity:0;pointer-events:none}
@@ -3373,17 +3373,18 @@ function openChat(){
   let p=document.getElementById('aiChat');
   if(!p){
     p=document.createElement('div');p.id='aiChat';
-    p.style.cssText='position:fixed;right:12px;bottom:12px;width:min(420px,calc(100vw - 24px));height:min(600px,calc(100vh - 24px));background:#f4ecd8;border:3px solid #b8860b;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.45);z-index:1300;display:flex;flex-direction:column;overflow:hidden';
-    p.innerHTML=`<div style="background:linear-gradient(135deg,#2c1810,#4a2c1a);color:#f4ecd8;padding:10px 14px;display:flex;align-items:center;gap:8px">
-      <span style="display:inline-flex;color:#10a37f;background:#fff;border-radius:50%;padding:4px;box-shadow:0 1px 3px rgba(0,0,0,.2)"><svg class="chatgpt-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="vertical-align:middle;display:inline-block"><path d="M22.28 9.54a5.55 5.55 0 0 0-.48-4.48 5.66 5.66 0 0 0-5.74-2.82A5.6 5.6 0 0 0 11.7.35a5.67 5.67 0 0 0-5.4 3.92 5.58 5.58 0 0 0-3.8 2.76 5.65 5.65 0 0 0 .68 6.33 5.56 5.56 0 0 0 .48 4.48 5.66 5.66 0 0 0 5.74 2.82 5.58 5.58 0 0 0 4.36 1.89 5.67 5.67 0 0 0 5.4-3.92 5.58 5.58 0 0 0 3.8-2.76 5.64 5.64 0 0 0-.68-6.33ZM12 21.68a3.67 3.67 0 0 1-2.43-.92l.14-.08 4.02-2.32a1 1 0 0 0 .5-.86v-5.68l1.7.98a.1.1 0 0 1 .05.08v4.67a3.7 3.7 0 0 1-3.98 3.83Zm-8-4.63a3.67 3.67 0 0 1-.45-2.56l.14.08 4.02 2.32a1 1 0 0 0 1 0l4.92-2.84v1.96a.1.1 0 0 1-.04.09l-4.05 2.34a3.7 3.7 0 0 1-5.54-1.39Zm-1.54-8.8a3.67 3.67 0 0 1 2-1.64V11a1 1 0 0 0 .5.87l4.92 2.84-1.7.98a.1.1 0 0 1-.1 0l-4.05-2.34a3.7 3.7 0 0 1-1.57-4.75ZM17.42 12 12.5 9.16l1.7-.98a.1.1 0 0 1 .1 0l4.05 2.34a3.7 3.7 0 0 1 1.57 4.75 3.67 3.67 0 0 1-2 1.64V12.87a1 1 0 0 0-.5-.87Zm3.12-2.42-.14-.08-4.02-2.32a1 1 0 0 0-1 0L10.46 10V8.04a.1.1 0 0 1 .04-.09l4.05-2.34a3.7 3.7 0 0 1 5.54 1.39 3.67 3.67 0 0 1 .45 2.58Zm-7.7-1.47-1.7-.98a.1.1 0 0 1-.05-.08V2.38a3.7 3.7 0 0 1 6.41-1.25l-.14.08-4.02 2.32a1 1 0 0 0-.5.86v5.72Z"/></svg></span><b style="flex:1">ChatGPT Story Assistant</b>
-      <button class="btn btn-sec" style="padding:2px 8px;font-size:.78em" onclick="openSettings()" title="AI Settings">⚙️</button>
-      <button class="btn btn-sec" style="padding:2px 9px;font-size:.8em" onclick="clearChat()" title="Reset chat">🗑</button>
-      <button class="btn btn-sec" style="padding:2px 9px;font-size:.8em" onclick="closeChat()">✕</button>
+    p.style.cssText='position:fixed;right:12px;bottom:12px;width:min(420px,calc(100vw - 24px));height:min(620px,calc(100vh - 24px));background:#202123;border:2px solid #10a37f;border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.6);z-index:1300;display:flex;flex-direction:column;overflow:hidden;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+    p.innerHTML=`<div style="background:#343541;color:#ececec;border-bottom:1px solid #444654;padding:12px 14px;display:flex;align-items:center;gap:10px">
+      <span style="display:inline-flex;color:#fff;background:#10a37f;border-radius:50%;padding:5px;box-shadow:0 2px 6px rgba(16,163,127,.4)"><svg class="chatgpt-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style="vertical-align:middle;display:inline-block"><path d="M22.28 9.54a5.55 5.55 0 0 0-.48-4.48 5.66 5.66 0 0 0-5.74-2.82A5.6 5.6 0 0 0 11.7.35a5.67 5.67 0 0 0-5.4 3.92 5.58 5.58 0 0 0-3.8 2.76 5.65 5.65 0 0 0 .68 6.33 5.56 5.56 0 0 0 .48 4.48 5.66 5.66 0 0 0 5.74 2.82 5.58 5.58 0 0 0 4.36 1.89 5.67 5.67 0 0 0 5.4-3.92 5.58 5.58 0 0 0 3.8-2.76 5.64 5.64 0 0 0-.68-6.33ZM12 21.68a3.67 3.67 0 0 1-2.43-.92l.14-.08 4.02-2.32a1 1 0 0 0 .5-.86v-5.68l1.7.98a.1.1 0 0 1 .05.08v4.67a3.7 3.7 0 0 1-3.98 3.83Zm-8-4.63a3.67 3.67 0 0 1-.45-2.56l.14.08 4.02 2.32a1 1 0 0 0 1 0l4.92-2.84v1.96a.1.1 0 0 1-.04.09l-4.05 2.34a3.7 3.7 0 0 1-5.54-1.39Zm-1.54-8.8a3.67 3.67 0 0 1 2-1.64V11a1 1 0 0 0 .5.87l4.92 2.84-1.7.98a.1.1 0 0 1-.1 0l-4.05-2.34a3.7 3.7 0 0 1-1.57-4.75ZM17.42 12 12.5 9.16l1.7-.98a.1.1 0 0 1 .1 0l4.05 2.34a3.7 3.7 0 0 1 1.57 4.75 3.67 3.67 0 0 1-2 1.64V12.87a1 1 0 0 0-.5-.87Zm3.12-2.42-.14-.08-4.02-2.32a1 1 0 0 0-1 0L10.46 10V8.04a.1.1 0 0 1 .04-.09l4.05-2.34a3.7 3.7 0 0 1 5.54 1.39 3.67 3.67 0 0 1 .45 2.58Zm-7.7-1.47-1.7-.98a.1.1 0 0 1-.05-.08V2.38a3.7 3.7 0 0 1 6.41-1.25l-.14.08-4.02 2.32a1 1 0 0 0-.5.86v5.72Z"/></svg></span>
+      <div style="flex:1"><b style="font-size:1.02em;color:#fff">ChatGPT Assistant</b><div style="font-size:.72em;color:#10a37f;font-weight:600;letter-spacing:.5px">ONLINE · GPT-5.4</div></div>
+      <button class="btn btn-sec" style="background:#40414f;border-color:#565869;color:#ececec;padding:3px 8px;font-size:.78em" onclick="openSettings()" title="AI Settings">⚙️</button>
+      <button class="btn btn-sec" style="background:#40414f;border-color:#565869;color:#ececec;padding:3px 9px;font-size:.8em" onclick="clearChat()" title="Reset chat">🗑</button>
+      <button class="btn btn-sec" style="background:#40414f;border-color:#565869;color:#ececec;padding:3px 9px;font-size:.8em" onclick="closeChat()">✕</button>
     </div>
-    <div id="chatMsgs" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px"></div>
-    <div style="padding:10px;border-top:2px solid #d4c4a8;display:flex;gap:6px;background:#faf3e3">
-      <input id="chatIn" placeholder='Type your request or choice here...' style="flex:1;background:#fff;border:1px solid #d4c4a8;border-radius:8px;padding:9px 11px;font-size:.92em" onkeydown="if(event.key==='Enter')sendChat()">
-      <button class="btn" onclick="sendChat()" id="chatSend">➤</button>
+    <div id="chatMsgs" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;background:#202123"></div>
+    <div style="padding:12px;border-top:1px solid #444654;display:flex;gap:8px;background:#343541;align-items:center">
+      <input id="chatIn" placeholder='Message ChatGPT Assistant...' style="flex:1;background:#40414f;border:1px solid #565869;color:#fff;border-radius:10px;padding:10px 14px;font-size:.95em;outline:none" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="btn" onclick="sendChat()" id="chatSend" style="background:#10a37f;color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:700">➤</button>
     </div>`;
     document.body.appendChild(p);
   }
@@ -3403,21 +3404,25 @@ function showChatIntentPicker(){
 
   const welcomeBubble=document.createElement('div');
   welcomeBubble.className='chat-bub ai';
+  welcomeBubble.style.cssText='background:#2f2f2f;border:1px solid #444654;color:#ececec;padding:14px;border-radius:14px;box-shadow:0 4px 14px rgba(0,0,0,.3)';
   welcomeBubble.innerHTML=`
-    <div style="font-weight:700;font-size:1.05em;color:#8b2500;margin-bottom:6px">👋 What do you want to do in this chat?</div>
-    <div style="font-size:.85em;color:#6b4c3b;margin-bottom:12px">AI Complexity: <b>${esc(comp)}</b>. Please pick your goal to get started:</div>
+    <div style="font-weight:700;font-size:1.08em;color:#10a37f;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+      <svg class="chatgpt-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M22.28 9.54a5.55 5.55 0 0 0-.48-4.48 5.66 5.66 0 0 0-5.74-2.82A5.6 5.6 0 0 0 11.7.35a5.67 5.67 0 0 0-5.4 3.92 5.58 5.58 0 0 0-3.8 2.76 5.65 5.65 0 0 0 .68 6.33 5.56 5.56 0 0 0 .48 4.48 5.66 5.66 0 0 0 5.74 2.82 5.58 5.58 0 0 0 4.36 1.89 5.67 5.67 0 0 0 5.4-3.92 5.58 5.58 0 0 0 3.8-2.76 5.64 5.64 0 0 0-.68-6.33ZM12 21.68a3.67 3.67 0 0 1-2.43-.92l.14-.08 4.02-2.32a1 1 0 0 0 .5-.86v-5.68l1.7.98a.1.1 0 0 1 .05.08v4.67a3.7 3.7 0 0 1-3.98 3.83Zm-8-4.63a3.67 3.67 0 0 1-.45-2.56l.14.08 4.02 2.32a1 1 0 0 0 1 0l4.92-2.84v1.96a.1.1 0 0 1-.04.09l-4.05 2.34a3.7 3.7 0 0 1-5.54-1.39Zm-1.54-8.8a3.67 3.67 0 0 1 2-1.64V11a1 1 0 0 0 .5.87l4.92 2.84-1.7.98a.1.1 0 0 1-.1 0l-4.05-2.34a3.7 3.7 0 0 1-1.57-4.75ZM17.42 12 12.5 9.16l1.7-.98a.1.1 0 0 1 .1 0l4.05 2.34a3.7 3.7 0 0 1 1.57 4.75 3.67 3.67 0 0 1-2 1.64V12.87a1 1 0 0 0-.5-.87Zm3.12-2.42-.14-.08-4.02-2.32a1 1 0 0 0-1 0L10.46 10V8.04a.1.1 0 0 1 .04-.09l4.05-2.34a3.7 3.7 0 0 1 5.54 1.39 3.67 3.67 0 0 1 .45 2.58Zm-7.7-1.47-1.7-.98a.1.1 0 0 1-.05-.08V2.38a3.7 3.7 0 0 1 6.41-1.25l-.14.08-4.02 2.32a1 1 0 0 0-.5.86v5.72Z"/></svg>
+      What do you want to do in this chat?
+    </div>
+    <div style="font-size:.85em;color:#9ca3af;margin-bottom:14px">ChatGPT Mode · <b>${esc(comp)}</b> Complexity</div>
     <div style="display:flex;flex-direction:column;gap:8px">
-      <button class="btn" style="background:linear-gradient(135deg,#8b2500,#b8860b);text-align:left;padding:10px 12px;font-size:.9em;display:flex;align-items:center;gap:8px" onclick="selectChatIntent('work')">
+      <button class="btn" style="background:#202123;border:1px solid #444654;color:#f3f4f6;text-align:left;padding:11px 14px;font-size:.92em;display:flex;align-items:center;gap:10px;border-radius:10px;cursor:pointer;transition:all .15s ease" onmouseover="this.style.borderColor='#10a37f'" onmouseout="this.style.borderColor='#444654'" onclick="selectChatIntent('work')">
         <span style="font-size:1.3em">✍️</span>
-        <div><b>Work on the story</b><div style="font-size:.8em;opacity:.9">Add new chapters, write prose, expand lore &amp; continue.</div></div>
+        <div><b style="color:#10a37f">Work on the story</b><div style="font-size:.78em;color:#9ca3af;margin-top:2px">Write next scenes, expand lore, continue prose.</div></div>
       </button>
-      <button class="btn" style="background:linear-gradient(135deg,#15803d,#16a34a);text-align:left;padding:10px 12px;font-size:.9em;display:flex;align-items:center;gap:8px" onclick="selectChatIntent('make')">
+      <button class="btn" style="background:#202123;border:1px solid #444654;color:#f3f4f6;text-align:left;padding:11px 14px;font-size:.92em;display:flex;align-items:center;gap:10px;border-radius:10px;cursor:pointer;transition:all .15s ease" onmouseover="this.style.borderColor='#10a37f'" onmouseout="this.style.borderColor='#444654'" onclick="selectChatIntent('make')">
         <span style="font-size:1.3em">🚀</span>
-        <div><b>Make a CYOP</b><div style="font-size:.8em;opacity:.9">Generate a brand new Choose Your Own Path adventure from scratch.</div></div>
+        <div><b style="color:#10a37f">Make a CYOP</b><div style="font-size:.78em;color:#9ca3af;margin-top:2px">Generate a brand new interactive story from an idea.</div></div>
       </button>
-      <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);text-align:left;padding:10px 12px;font-size:.9em;display:flex;align-items:center;gap:8px" onclick="selectChatIntent('edit')">
+      <button class="btn" style="background:#202123;border:1px solid #444654;color:#f3f4f6;text-align:left;padding:11px 14px;font-size:.92em;display:flex;align-items:center;gap:10px;border-radius:10px;cursor:pointer;transition:all .15s ease" onmouseover="this.style.borderColor='#10a37f'" onmouseout="this.style.borderColor='#444654'" onclick="selectChatIntent('edit')">
         <span style="font-size:1.3em">🔧</span>
-        <div><b>Edit a CYOA</b><div style="font-size:.8em;opacity:.9">Tweak branches, add choices, balance endings, or modify scenes.</div></div>
+        <div><b style="color:#10a37f">Edit a CYOA</b><div style="font-size:.78em;color:#9ca3af;margin-top:2px">Tune branching, add choices, balance endings &amp; scenes.</div></div>
       </button>
     </div>
   `;
