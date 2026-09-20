@@ -728,8 +728,11 @@ function newPassage(){
   let n=1,t='new passage';
   const titles=new Set(Object.values(cyoa.passages).map(p=>slug(p.title)));
   while(titles.has(slug(t)))t='new passage '+(++n);
-  cyoa.passages[id]={id,title:t,text:'',type:'normal',choices:[]};
-  curPid=id;save();renderList();renderEditor();toast('New passage added');
+  // Default new passages to 'continue' (narration) so they flow with ➡ Continue
+  // instead of dead-ending on a blank choice scene. Author can switch to "choice"
+  // mode explicitly when they want a decision point.
+  cyoa.passages[id]={id,title:t,text:'',type:'continue',choices:[],contTarget:''};
+  curPid=id;save();renderList();renderEditor();toast('New scene added — type your narration, then link it or add choices');
 }
 
 function deletePassage(){
@@ -999,7 +1002,9 @@ function addChoiceAndCreate(){
   if(!d){while(titles.has(slug('path '+n)))n++;d='path '+n;}
   const letters='ABCDEFGHIJ';
   const id=uid();
-  cyoa.passages[id]={id,title:d,text:'',type:'normal',choices:[]};
+  // Target passages default to 'continue' (narration) so the story keeps flowing
+  // with ➡ Continue; the author can add choices to it later if wanted.
+  cyoa.passages[id]={id,title:d,text:'',type:'continue',choices:[],contTarget:''};
   const newIdx=p.choices.length;
   p.choices.push({letter:letters[newIdx],text:'',target:d,targetType:'passage'});
   prevPid=curPid;
@@ -1181,13 +1186,17 @@ function validateStory(){
   for(const id in cyoa.passages){
     const p=cyoa.passages[id];
     if(p.type==='continue'){
-      if(!p.contTarget||!findPidByLabel(p.contTarget)){
-        problems.push('"'+p.title+'" is a 💬 Continue passage but has no next scene linked.');
+      // Empty contTarget is fine — the player auto-advances past unlinked scenes.
+      // Only flag a link that points somewhere that doesn't exist.
+      if(p.contTarget&&!findPidByLabel(p.contTarget)){
+        problems.push('"'+p.title+'" links to "'+p.contTarget+'" which doesn\'t exist yet.');
       }
     }
     if(p.type==='normal'){
       for(const c of (p.choices||[])){
-        if(c.targetType==='passage'&&c.target&&!findPidByLabel(c.target)){
+        if(c.targetType==='passage'&&!c.target){
+          if((c.text||'').trim())problems.push('Choice "'+c.text+'" in "'+p.title+'" has no destination — pick a target passage.');
+        }else if(c.targetType==='passage'&&c.target&&!findPidByLabel(c.target)){
           problems.push('Choice "'+(c.text||'?')+'" in "'+p.title+'" points to "'+c.target+'" which doesn\'t exist yet.');
         }
       }
@@ -1222,6 +1231,20 @@ function pickContinueIdx(p,fromPid){
   return opts[0].i;
 }
 
+function autoForwardTarget(pid){
+  // Fallback for scenes with no playable choices (blank choice scene, unlinked
+  // continue, etc.): keep the story moving instead of dead-ending.
+  const p=cyoa.passages[pid];
+  if(!p)return null;
+  if(p.contTarget){const t=findPidByLabel(p.contTarget);if(t&&t!==pid)return t;}
+  const ids=Object.keys(cyoa.passages);
+  const open=x=>x!==pid&&!_playVisited.has(x)&&cyoa.passages[x].type!=='death';
+  const after=ids.slice(ids.indexOf(pid)+1).filter(open);
+  if(after.length)return after[0];
+  const any=ids.filter(open);
+  return any.length?any[0]:null;
+}
+
 function showPassage(pid){
   if(_playVisited)_playVisited.add(pid);
   const p=cyoa.passages[pid];
@@ -1248,10 +1271,19 @@ function showPassage(pid){
       html+=`<button class="pchoice cont" onclick="gotoContinue(${JSON.stringify(pid)},${JSON.stringify(tgt)})"><span class="l">➡</span>Continue →</button>`;
     }
   }else if(p.choices.length===0){
-    html+=`<div class="pend"><p style="color:#991b1b;text-align:center">— The story ends here (no choices) —</p><button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+    // Choice scene with no choices written (or unlinked scene): auto-advance so
+    // the story keeps flowing instead of dead-ending mid-play.
+    const fwd=autoForwardTarget(pid);
+    if(fwd){
+      html+=`<button class="pchoice cont" onclick="gotoContinue(${JSON.stringify(pid)},${JSON.stringify(fwd)})"><span class="l">➡</span><em>Continue →</em></button>`;
+    }else{
+      html+=`<div class="pend"><p style="color:#991b1b;text-align:center">— The story ends here —</p><button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+    }
   }else{
     // Normal passage: only the user-written choices. Never add a synthetic Continue button.
+    // Fully blank placeholder rows (no text, no target) are hidden.
     p.choices.forEach((c,i)=>{
+      if(c.targetType==='passage'&&!c.target&&!(c.text||'').trim())return;
       html+=`<button class="pchoice" onclick="choose(${JSON.stringify(pid)},${i})"><span class="l">${c.letter}</span>${esc(c.text||'Continue...')}</button>`;
     });
   }
@@ -1316,7 +1348,7 @@ function exportHTML(){
     const p=cyoa.passages[id];
     passages[slug(p.title)]={title:p.title,text:p.text,type:p.type,media:p.media||null,contTarget:p.type==='continue'&&p.contTarget?slug(p.contTarget):null,choices:p.choices.map(c=>({letter:c.letter,text:c.text,targetType:c.targetType,target:c.targetType==='passage'?slug(c.target):c.target}))};
   }
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport"content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>body{font-family:Georgia,serif;max-width:640px;margin:40px auto;padding:20px;background:#f4ecd8;color:#2c1810;line-height:1.8}h1{color:#8b2500;border-bottom:2px solid #b8860b;padding-bottom:10px}.t{margin-bottom:20px;white-space:pre-wrap}.c{display:block;background:#fff;border:2px solid #d4c4a8;border-left:5px solid #8b2500;border-radius:8px;padding:12px;margin:8px 0;cursor:pointer;font-family:inherit;font-size:1em;text-align:left;transition:all .15s;width:100%;line-height:1.5}.c:hover{background:#fff8e7;border-color:#8b2500}.cl{display:inline-block;width:26px;height:26px;border-radius:50%;background:#8b2500;color:#fff;text-align:center;line-height:26px;font-weight:700;margin-right:10px}.e{text-align:center;padding:30px}.e.death h2{color:#991b1b}.e.victory h2{color:#15803d}</style></head><body><h1>${esc(title)}</h1><div id="s"></div><script>const P=${JSON.stringify(passages)};function show(k){const p=P[k];const d=document.getElementById('s');if(!p){d.innerHTML='<div class="e"><h2>Path not found</h2></div>';return;}if(p.type==='death'){d.innerHTML='<div class="e death"><h2>💀 You have died.</h2><p style="white-space:pre-wrap;text-align:left">'+(p.text||'Your journey ends here.')+'</p><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Try Again</button></div>';return;}if(p.type==='victory'){d.innerHTML='<div class="e victory"><h2>🏆 Victory!</h2><p style="white-space:pre-wrap;text-align:left">'+(p.text||'You win!')+'</p><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Play Again</button></div>';return;}let h='<div class="t">'+(p.text||'')+'</div>';if(p.type==='continue'){if(p.contTarget&&P[p.contTarget]){h+='<button class="c"style="border-left-color:#b8860b;background:#fff8e7;font-style:italic;text-align:center"onclick="show(\\''+p.contTarget+'\\')"><span class="cl"style="background:#b8860b">➡</span>Continue →</button>';}else{h+='<p style="text-align:center;color:#991b1b">— The end —</p>';}}else{p.choices.forEach(c=>{h+='<button class="c"onclick="go(\\''+c.target+'\\',\\''+c.targetType+'\\')"><span class="cl">'+c.letter+'</span>'+(c.text||'Continue...').replace(/</g,'&lt;')+'</button>';});}d.innerHTML=h;window.scrollTo(0,0);}function go(t,type){if(type==='death'){document.getElementById('s').innerHTML='<div class="e death"><h2>💀 You have died.</h2><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Try Again</button></div>';return;}if(type==='victory'){document.getElementById('s').innerHTML='<div class="e victory"><h2>🏆 Victory!</h2><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Play Again</button></div>';return;}show(t);}show('start');<\/script></body></html>`;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport"content="width=device-width,initial-scale=1"><title>${esc(title)}</title><style>body{font-family:Georgia,serif;max-width:640px;margin:40px auto;padding:20px;background:#f4ecd8;color:#2c1810;line-height:1.8}h1{color:#8b2500;border-bottom:2px solid #b8860b;padding-bottom:10px}.t{margin-bottom:20px;white-space:pre-wrap}.c{display:block;background:#fff;border:2px solid #d4c4a8;border-left:5px solid #8b2500;border-radius:8px;padding:12px;margin:8px 0;cursor:pointer;font-family:inherit;font-size:1em;text-align:left;transition:all .15s;width:100%;line-height:1.5}.c:hover{background:#fff8e7;border-color:#8b2500}.cl{display:inline-block;width:26px;height:26px;border-radius:50%;background:#8b2500;color:#fff;text-align:center;line-height:26px;font-weight:700;margin-right:10px}.e{text-align:center;padding:30px}.e.death h2{color:#991b1b}.e.victory h2{color:#15803d}</style></head><body><h1>${esc(title)}</h1><div id="s"></div><script>const P=${JSON.stringify(passages)};function show(k){const p=P[k];const d=document.getElementById('s');if(!p){d.innerHTML='<div class="e"><h2>Path not found</h2></div>';return;}if(p.type==='death'){d.innerHTML='<div class="e death"><h2>💀 You have died.</h2><p style="white-space:pre-wrap;text-align:left">'+(p.text||'Your journey ends here.')+'</p><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Try Again</button></div>';return;}if(p.type==='victory'){d.innerHTML='<div class="e victory"><h2>🏆 Victory!</h2><p style="white-space:pre-wrap;text-align:left">'+(p.text||'You win!')+'</p><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Play Again</button></div>';return;}let h='<div class="t">'+(p.text||'')+'</div>';if(p.type==='continue'){if(p.contTarget&&P[p.contTarget]){h+='<button class="c"style="border-left-color:#b8860b;background:#fff8e7;font-style:italic;text-align:center"onclick="show(\\''+p.contTarget+'\\')"><span class="cl"style="background:#b8860b">➡</span>Continue →</button>';}else{h+='<p style="text-align:center;color:#991b1b">— The end —</p>';}}else{p.choices.forEach(c=>{if(c.targetType==='passage'&&!c.target&&!(c.text||'').trim())return;h+='<button class="c"onclick="go(\\''+c.target+'\\',\\''+c.targetType+'\\')"><span class="cl">'+c.letter+'</span>'+(c.text||'Continue...').replace(/</g,'&lt;')+'</button>';});}d.innerHTML=h;window.scrollTo(0,0);}function go(t,type){if(type==='death'){document.getElementById('s').innerHTML='<div class="e death"><h2>💀 You have died.</h2><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Try Again</button></div>';return;}if(type==='victory'){document.getElementById('s').innerHTML='<div class="e victory"><h2>🏆 Victory!</h2><button class="c"style="width:auto;display:inline-block;padding:10px 20px;margin-top:16px"onclick="show(\\'start\\')">↻ Play Again</button></div>';return;}show(t);}show('start');<\/script></body></html>`;
   const blob=new Blob([html],{type:'text/html'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=slug(title)+'.html';a.click();
   URL.revokeObjectURL(a.href);
@@ -2243,9 +2275,23 @@ function readStoryObject(s,addToLib,idx){
         endPlay();
       }
   }else if(p.choices.length===0){
-    h+='<p style="text-align:center;color:#991b1b">— The end —</p>';
-    endPlay();
+    // Blank choice scene: auto-advance to a sensible next scene instead of ending.
+    const p2=passages[pid];
+    let fwd=null;
+    if(p2&&p2.contTarget){fwd=findTgt({target:p2.contTarget,targetType:'passage'});if(fwd===pid)fwd=null;}
+    if(!fwd){
+      const ids=Object.keys(passages);
+      const open=x=>x!==pid&&!_rVisited.has(x)&&passages[x].type!=='death';
+      const after=ids.slice(ids.indexOf(pid)+1).filter(open);
+      fwd=after.length?after[0]:(ids.filter(open)[0]||null);
+    }
+    if(fwd){
+      h+=`<button class="pchoice cont" onclick="_rPrev='${pid}';rp('${fwd}')"><span class="l" style="background:#b8860b">➡</span><em>Continue →</em></button>`;
     }else{
+      h+='<p style="text-align:center;color:#991b1b">— The end —</p>';
+      endPlay();
+    }
+  }else{
       // Normal passage: render each choice as a button. NO extra "Continue" button —
       // the user explicitly wrote these choices, they must pick one.
       p.choices.forEach((c,ci)=>{
@@ -2403,7 +2449,7 @@ function doSmartConvert(text){
     else {p.type='victory';p.text=(p.text?p.text+'\n\n':'')+vicTextBase;delete p.contTarget;p.choices=[];}
   }
 
-  let userChoiceCount=0,aiChoiceCount=0;
+  let userChoiceCount=0;
   const letters='ABCDEFGHIJ';
   const forwardFillers=[
     'Keep going','Press on','Move forward carefully','Take the obvious path','Continue ahead'
@@ -2439,44 +2485,9 @@ function doSmartConvert(text){
     }
   });
 
-  const aiOptionPool=[
-    'Stop and look around','Take a risk','Call out','Wait and listen','Turn back for a moment',
-    'Press on despite the feeling','Examine more closely','Take a different approach'
-  ];
-  // Plant light AI branches sparingly: roughly every 4th-5th narration scene.
-  // Most scenes stay as pure Continue → so readers don't get a choice every paragraph.
-  let nextBranchAt=2; // first optional branch after scene 2
-  for(let i=0;i<mainIds.length-1;i++){
-    const p=passages[mainIds[i]];
-    if(p.type!=='continue')continue;
-    if(i!==nextBranchAt)continue;
-    p.type='normal';delete p.contTarget;
-    const choices=[];
-    const nextTitle=passages[mainIds[i+1]].title;
-    choices.push({letter:'A',text:'Keep going',target:nextTitle,targetType:'passage'});
-    // Only add a detour branch if there's meaningful story left (don't branch the last scene)
-    if(i<mainIds.length-2){
-      const detourId=uid();
-      const detourTitle=uniqTitle('another way');
-      const detourText=pickR([
-        'You take a brief detour. The world feels different for a moment, then the path returns to familiar ground.',
-        'Curiosity pulls you aside for a moment. What you find there stays with you, but the way forward remains.',
-        'A small decision shifts the scene. Nothing irreversible \u2014 just a different rhythm for a while.'
-      ],mainIds[i]);
-      passages[detourId]={id:detourId,title:detourTitle,text:detourText,type:'continue',choices:[],contTarget:nextTitle};
-      choices.push({letter:'B',text:aiOptionPool[(i+3)%aiOptionPool.length],target:detourTitle,targetType:'passage'});
-      aiChoiceCount++;
-      // Rare death branch: only on longer stories, deeper in
-      if(mainIds.length>6 && i>3 && (i%7===0)){
-        choices.push({letter:'C',text:'Take the riskier option',target:passages[deathId].title,targetType:'death'});
-        aiChoiceCount++;
-      }
-    }
-    p.choices=choices;aiChoiceCount+=choices.length-1;
-    // Schedule the next branch 3-5 scenes ahead based on story length
-    const step=mainIds.length>8?4+(i%2):3;
-    nextBranchAt=i+step;
-  }
+  // No AI-planted branches: narration scenes stay as pure single-button Continue.
+  // Choices appear ONLY where the author actually wrote A)/B)/C) lines, so readers
+  // never have to click through filler choices the author didn't write.
 
   for(const id in passages){
     const p=passages[id];
@@ -2500,7 +2511,7 @@ function doSmartConvert(text){
   const total=Object.keys(passages).length;
   let msg='Finalized '+total+' passages. Chained narration into Continue \u2192 flow. ';
   if(userChoiceCount>0)msg+='Wired up your '+userChoiceCount+' written choice'+(userChoiceCount===1?'':'s')+'. ';
-  msg+='Added '+aiChoiceCount+' AI branch'+(aiChoiceCount===1?'':'es')+' for variety. Death & victory endings added. Hit \u25b6 Test play to try it!';
+  msg+='Narration flows with single Continue buttons \u2014 choices only appear where you wrote them. Death & victory endings added. Hit \u25b6 Test play to try it!';
   document.getElementById('convResultText').textContent=msg;
   renderList();renderEditor();
   toast('Story finalized \u2014 ready to play!');
