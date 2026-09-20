@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Storyteller CYOA — Build Your Own Choose-Your-Own-Adventure</title>
+<title>Storyteller CYOP — Build Your Own Choose-Your-Own-Adventure</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Georgia,'Times New Roman',serif;background:#f4ecd8;color:#2c1810;min-height:100vh;line-height:1.6}
@@ -198,7 +198,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 <body>
 
 <header>
-  <div class="logo">📖 Storyteller CYOA<small>WRITE YOUR OWN ADVENTURE</small></div>
+  <div class="logo">📖 Storyteller CYOP<small>WRITE YOUR OWN ADVENTURE</small></div>
     <div class="hd-r">
       <input type="text" id="storyTitle" placeholder="Story title..." style="background:rgba(255,255,255,.1);border:1px solid #b8860b;color:#f4ecd8;padding:6px 10px;border-radius:4px;min-width:180px">
       <button class="btn btn-sec" onclick="newStory()" title="Start a brand new story (clears the current draft)">✨ New</button>
@@ -222,7 +222,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 <!-- HOME -->
 <section id="tab-home" class="tab active">
   <div class="hero">
-    <h1>✨ Storyteller CYOA — Write Your Own Adventure ✨</h1>
+    <h1>✨ Storyteller CYOP — Write Your Own Adventure ✨</h1>
     <p>Build branching <b>choose-your-own-adventure</b> stories right in your browser. Write scenes, add choices, end in <b style="color:#991b1b">death</b> or <b style="color:#15803d">victory</b>. Paste a rough draft and AI turns it into a playable CYOA — or start from scratch.</p>
     <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
         <button class="btn btn-gold" onclick="newStory(true)" style="font-size:1.15em;padding:14px 26px">📝 Start writing</button>
@@ -1446,16 +1446,24 @@ function editBirthday(){
   if(userAge>=0){toast('Age is locked once set. To change it, clear this site\u2019s data in your browser.');return;}
   askBirthday(true);
 }
-function openAgeGate(title,onApproved){
+function openAgeGate(title,onApproved,matureOnly){
   const gate=document.getElementById('agegate');
   const box=document.getElementById('agebox');
   gate._mode='idcheck';
   box.style.borderColor='#dc2626';
   openOverlay('agegate');
+  const headHtml = matureOnly
+    ? `<div class="warn">🔞</div>
+       <h2>⚠️ Age-Restricted Content</h2>
+       <p class="sub"><b>"${esc(title)}"</b> is rated <span style="color:#dc2626;font-weight:900">ST-5 — Mature (18+)</span>.<br>You must verify your age to read this story.</p>`
+    : `<div class="warn">🪪</div>
+       <h2>🪪 ID Verification Required</h2>
+       <p class="sub">You must verify your ID with an AI scan before playing <b>"${esc(title)}"</b>.<br>ID verification is required for every story you play.</p>`;
+  const denyNote = matureOnly
+    ? 'Minors attempting to access mature content will be blocked. The AI verifies that your DOB makes you 18+, your ID is valid format, and cross-checks the information.'
+    : 'The AI verifies your ID is valid, that you are of appropriate age for the content, and cross-checks the information. ID verification is required once per story playthrough.';
   box.innerHTML=`
-    <div class="warn">🔞</div>
-    <h2>⚠️ Age-Restricted Content</h2>
-    <p class="sub"><b>"${esc(title)}"</b> is rated <span style="color:#dc2626;font-weight:900">ST-5 — Mature (18+)</span>.<br>You must verify your age to read this story.</p>
+    ${headHtml}
     <div class="id-scanner" id="idScanner">
       <div class="scanline"></div>
       <div id="idForm">
@@ -1475,7 +1483,7 @@ function openAgeGate(title,onApproved){
         <div style="margin-top:14px;text-align:center">
           <button class="id-scan-btn" onclick="runIDScan()">📷 Scan ID &amp; Verify with AI</button>
         </div>
-        <div class="deny-note">Minors attempting to access mature content will be blocked. The AI verifies that your DOB makes you 18+, your ID is valid format, and cross-checks the information. Verified status lasts for this session only on your device.</div>
+        <div class="deny-note">${denyNote}</div>
       </div>
       <div id="idScanning" style="display:none;padding:20px 0">
         <div class="dots" style="color:#dc2626;font-size:1.6em"><span>●</span><span>●</span><span>●</span></div>
@@ -1488,6 +1496,7 @@ function openAgeGate(title,onApproved){
     </div>`;
   setTimeout(()=>{const n=document.getElementById('idName');if(n)n.focus();},100);
   gate._onApproved=onApproved;
+  gate._matureOnly=!!matureOnly;
 }
 function closeAgeGate(force){
   const g=document.getElementById('agegate');
@@ -1527,11 +1536,12 @@ function runIDScan(){
   const name=document.getElementById('idName').value.trim();
   const dob=document.getElementById('idDob').value;
   const idnum=document.getElementById('idNum').value.trim();
+  const matureOnly=!!document.getElementById('agegate')._matureOnly;
   const reasons=[];
   if(!name||name.split(/\s+/).length<2)reasons.push('Full name not provided');
   const age=calcAge(dob);
   if(!dob||age<1)reasons.push('Date of birth not provided');
-  else if(age<18)reasons.push(`Age calculated as ${age} — under 18`);
+  else if(matureOnly&&age<18)reasons.push(`Age calculated as ${age} — under 18`);
   else if(age>120)reasons.push('DOB appears invalid (age > 120)');
   if(!fakeIDChecksum(idnum))reasons.push('ID number not in valid format');
 
@@ -1565,9 +1575,13 @@ function showIDResult(approved,reasons,age){
   document.getElementById('idScanning').style.display='none';
   const res=document.getElementById('idResult');
   if(approved){
-    ageVerifiedThisSession=true;
+    // Only grant 18+ session verification if this was a mature check.
+    if(document.getElementById('agegate')._matureOnly) ageVerifiedThisSession=true;
     res.className='id-result approved';
-    res.innerHTML=`<div class="id-big">✅</div><h3 style="color:#22c55e;border:none">ID Approved</h3><p style="margin-top:6px">AI verified you are <b>${age} years old</b> (18+).<br>Access granted to mature content.</p>
+    const okMsg = document.getElementById('agegate')._matureOnly
+      ? `AI verified you are <b>${age} years old</b> (18+).<br>Access granted to mature content.`
+      : `AI verified your ID — you are <b>${age} years old</b>.<br>Access granted for this story.`;
+    res.innerHTML=`<div class="id-big">✅</div><h3 style="color:#22c55e;border:none">ID Approved</h3><p style="margin-top:6px">${okMsg}</p>
     <button class="btn" style="background:#22c55e;margin-top:14px" onclick="finishAgeApproved()">Continue →</button>`;
   }else{
     res.className='id-result denied';
@@ -1940,7 +1954,7 @@ function pubAgeVerify(){
     finishPublish();
     openOverlay('pubw');
     openPub('step3');
-  });
+  },true);
 }
 function finishPublish(){
   const entry={
@@ -2151,9 +2165,12 @@ function readStoryObject(s,addToLib,idx){
   if(userAge<0){askBirthday(true,function(){readStoryObject(s,addToLib,idx);});return;}
   // Age-tier gate
   if(!canViewRating(s.rating.score,s)){showLockedMsg(s.title,s.rating,function(){readStoryObject(s,addToLib,idx);});return;}
-  // ST-5 mature also needs ID scan (18+) for OTHER people's stories; your own skip the scan
-  if(s.rating.score===5&&!isAgeVerified()&&!s._owned){
-    openAgeGate(s.title,()=>readStoryObject(s,addToLib,idx));
+  // ID verification required for EVERY story play (your own stories skip the scan).
+  // ST-5 mature enforces 18+; other stories just verify a valid ID.
+  if(!s._owned){
+    const needsMatureScan = (s.rating.score===5);
+    // Require a fresh scan every time a CYOA is opened.
+    openAgeGate(s.title,()=>readStoryObject(s,addToLib,idx),needsMatureScan);
     return;
   }
   seedStoryStats(s);
@@ -2723,10 +2740,8 @@ function importStoryCode(){
   updateLibCount();renderLib();
   input.value='';toast('Story imported! Opening...');
   switchTab('lib');
-  // Open it via readPublishedId (reads community directly)
+  // Open it via readPublishedId (reads community directly) — ID gate handled in readStoryObject
   if(userAge<0){askBirthday(true,function(){readPublishedId(entry.id);});return;}
-  if(!canViewRating(entry.rating.score)){showLockedMsg(entry.title,entry.rating,function(){readPublishedId(entry.id);});return;}
-  if(entry.rating.score===5&&!isAgeVerified()){openAgeGate(entry.title,()=>readPublishedId(entry.id));return;}
   readPublishedId(entry.id);
 }
 
@@ -2756,12 +2771,10 @@ function rateFromScore(score){
         });
         const entry={id,title:data.t||'Shared Story',description:data.d||'',series:data.se||'',author:data.a||'Shared link',rating,story:{passages},publishedAt:Date.now(),plays:0,firstTryWins:0,_community:true,_imported:true,_owned:false};
         if(!getImported().some(x=>x.id===id)&&!library.some(x=>x.id===id)){addImported(entry);updateLibCount();renderLib();}
-        // Open it after init
+        // Open it after init — rating/ID gates handled inside readPublishedId → readStoryObject
         setTimeout(()=>{
           if(userAge<0){askBirthday(true,function(){readPublishedId(entry.id);});return;}
-          if(!canViewRating(entry.rating.score)){showLockedMsg(entry.title,entry.rating,function(){readPublishedId(entry.id);});return;}
-          if(entry.rating.score===5&&!isAgeVerified()){openAgeGate(entry.title,()=>readPublishedId(entry.id));}
-          else readPublishedId(entry.id);
+          readPublishedId(entry.id);
         },300);
       }
     }
