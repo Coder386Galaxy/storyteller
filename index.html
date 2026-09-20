@@ -1488,7 +1488,7 @@ function exportHTML(){
 //   ST-1: all ages   ST-2: ~7+   ST-3: ~12+   ST-4: ~16+   ST-5: 18+
 const LS_DOB='sf_dob';       // persistent: 'YYYY-MM-DD'
 const LS_AGE='sf_age_ok';    // legacy: keep for session 18+ ID gate
-const MIN_AGE={1:0,2:7,3:10,4:14,5:18};
+const MIN_AGE={1:0,2:4,3:8,4:14,5:18};
 let userAge=-1;
 let ageVerifiedThisSession=false; // 18+ ID check for ST-5 specifically
 
@@ -1528,7 +1528,7 @@ function showLockedMsg(title,rating,onDone){
     `<div style="text-align:center">
        <div style="font-size:3em;margin-bottom:8px">🔒</div>
        <h3 style="color:#991b1b;border:none;margin-bottom:8px">"${esc(title)}" is ${rating.r.code} — ${rating.r.name}</h3>
-       <p>This story is for ages <b>${min}+</b>. ${ageLine}</p>
+       <p>This adventure is recommended for <b>${esc(rating.r.ageGroup || rating.r.short || (min + '+'))}</b>.<br>${ageLine}</p>
        ${userAge>=0?'<p style="font-size:.85em;color:#6b4c3b;margin-top:10px">Birthdate is locked once set. To change it, clear this site\u2019s data in your browser.</p>':''}
        <div style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
          <button class="btn btn-sec" onclick="closeModal();switchTab(\'lib\')">← Back</button>
@@ -1822,11 +1822,11 @@ function updateLibCount(){const el=document.getElementById('libCount');if(el)el.
 
 // Age rating AI analyzer (heuristic-based, simulates content-analysis AI)
 const RATINGS={
-  st1:{code:'ST-1',name:'General',color:'st1',short:'All ages',desc:'Suitable for all ages. Friendly fun, puzzles, exploration, and light adventures.'},
-  st2:{code:'ST-2',name:'Mild',color:'st2',short:'Ages 7+',desc:'Mild adventure tension, fantasy monsters, playful perils, and standard adventure stakes.'},
-  st3:{code:'ST-3',name:'Moderate',color:'st3',short:'Ages 10+',desc:'Classic fantasy action, sword battles, dungeons, traps, and spooky mysteries. Ideal for middle grade readers & 10+.'},
-  st4:{code:'ST-4',name:'Intense',color:'st4',short:'Ages 14+',desc:'Heavy psychological horror, gruesome graphic danger, and dark mature thriller themes.'},
-  st5:{code:'ST-5',name:'Mature',color:'st5',short:'Ages 18+',desc:'Explicit adult content, extreme gore/horror, and restricted graphic material.'}
+  st1:{code:'ST-1',name:'Early Adventures',color:'st1',short:'Ages 3–7',ageGroup:'Ages 3–7 (Early Readers & Kids)',desc:'Perfect for young adventurers, early readers, puzzles, and lighthearted fun. Safe for everyone.'},
+  st2:{code:'ST-2',name:'Middle Adventures',color:'st2',short:'Ages 8–11',ageGroup:'Ages 8–11 (Kids & Pre-Teens)',desc:'Mild adventure tension, friendly monsters, mystery solving, and classic quest challenges.'},
+  st3:{code:'ST-3',name:'Teen Quests',color:'st3',short:'Ages 12–15',ageGroup:'Ages 12–15 (Teens & Middle Grade)',desc:'Epic fantasy battles, sword fights, dungeons, spooky lore, traps, and exciting peril.'},
+  st4:{code:'ST-4',name:'Young Adult Peril',color:'st4',short:'Ages 16–17',ageGroup:'Ages 16–17 (Young Adult & Older Teens)',desc:'Dark fantasy themes, intense survival situations, suspenseful thrillers, and heavier stakes.'},
+  st5:{code:'ST-5',name:'Mature 18+',color:'st5',short:'Ages 18+',ageGroup:'Ages 18+ (Adults Only)',desc:'Explicit adult content, graphic horror, and mature themes restricted to adult audiences.'}
 };
 
 function analyzeRating(story){
@@ -1879,7 +1879,7 @@ function analyzeRating(story){
   if(reasons.length===0) reasons.push('Friendly adventure content throughout.');
   // School-friendly includes ST-1, ST-2, and ST-3 fantasy stories with no gore
   const schoolFriendly = score<=2 || (score===3 && intHits.length===0 && matHits.length===0);
-  return {score, r:RATINGS['st'+score], reasons, schoolFriendly};
+  const rObj = RATINGS['st'+score]; return {score, r:{code:rObj.code,name:rObj.name,color:rObj.color,short:rObj.short,ageGroup:rObj.ageGroup,desc:rObj.desc}, reasons, schoolFriendly};
 }
 
 // Publish wizard state
@@ -2074,9 +2074,10 @@ function openPub(step){
           </div>
         </div>
         <div class="rating-card ${r.r.color}">
-          <div style="font-size:.85em;text-transform:uppercase;letter-spacing:2px;opacity:.7">AI Age Rating</div>
+          <div style="font-size:.85em;text-transform:uppercase;letter-spacing:2px;opacity:.7">AI Age Group Rating</div>
           <div class="rating-big">${r.r.code}</div>
-          <div class="rating-sub">${r.r.name} — ${r.r.short}</div>
+          <div class="rating-sub">${r.r.name} · ${r.r.short}</div>
+          <div style="font-size:.92em;font-weight:700;margin:6px 0;opacity:.95">🎯 Recommended Audience: ${r.r.ageGroup||r.r.short}</div>
           <div class="rating-desc">${r.r.desc}</div>
           ${schoolBadge}
           <div class="rating-reason">Analysis: ${r.reasons.join(' ')}<br>
@@ -2331,8 +2332,9 @@ function libCard(s){
     +(()=>{
       const diff = s.difficulty || analyzeDifficulty(s.story);
       const authorName = s.author || ((s._owned&&currentUser&&currentUser.username)?currentUser.username:'Creator');
+      const groupLabel = (r.short || (s.rating.score===1?'Ages 3–7':s.rating.score===2?'Ages 8–11':s.rating.score===3?'Ages 12–15':s.rating.score===4?'Ages 16–17':'18+'));
       return '<div class="lmeta">'
-        +'<span class="rb '+r.color+'" title="AI Age Rating: '+esc(r.name)+'">🔞 '+r.code+(s.rating.score>1?' · '+min+'+':' · All Ages')+'</span>'
+        +'<span class="rb '+r.color+'" title="AI Age Group: '+esc(r.ageGroup||r.name)+'">🎯 '+r.code+' ('+groupLabel+')</span>'
         +'<span class="rb" style="background:'+diff.color+';color:#fff;font-weight:700" title="AI Assigned Difficulty: '+diff.level+'">⚡ '+diff.level+' '+diff.stars+'</span>'
         +'<span class="rb" style="background:#e7d8b8;color:#4a2c1a;font-weight:700" title="Creator Username">👤 @'+esc(authorName)+'</span>'
         +(s.rating.schoolFriendly?'<span class="rb school" title="School-friendly — appropriate for class">🏫 School</span>':'')
@@ -2462,7 +2464,7 @@ function readStoryObject(s,addToLib,idx){
       <h1 style="border-bottom:2px solid #b8860b;padding-bottom:6px;margin-bottom:10px;font-size:1.8em;color:#8b2500">${esc(s.title)}</h1>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
         <span class="rb" style="background:#4a2c1a;color:#f4ecd8;font-size:.9em;padding:4px 10px">👤 <b>Creator:</b> @${esc(authorUser)}</span>
-        <span class="rb ${s.rating.r.color}" style="font-size:.9em;padding:4px 10px" title="AI Age Rating">🔞 <b>Age Rating:</b> ${s.rating.r.code} (${ageLabel})</span>
+        <span class="rb ${s.rating.r.color}" style="font-size:.9em;padding:4px 10px" title="AI Age Group: ${esc(s.rating.r.ageGroup||s.rating.r.name)}">🎯 <b>Age Group:</b> ${s.rating.r.code} (${s.rating.r.short||(minAge>0?minAge+'+':'All Ages')})</span>
         <span class="rb" style="background:${diff.color};color:#fff;font-size:.9em;padding:4px 10px" title="AI Assigned Difficulty">⚡ <b>AI Difficulty:</b> ${diff.level} ${diff.stars}</span>
         ${s.rating.schoolFriendly?'<span class="rb school" style="font-size:.85em">🏫 School-Friendly</span>':''}
         ${s.series?'<span style="font-size:.85em;color:#6b4c3b;margin-left:4px">📚 <b>Series:</b> '+esc(s.series)+'</span>':''}
@@ -3110,7 +3112,7 @@ function rateFromScore(score){
   const s=Math.max(1,Math.min(5,score|0));
   const keys=['st1','st2','st3','st4','st5'];
   const k=keys[s-1];const base=RATINGS[k];
-  return {score:s,r:{code:base.code,name:base.name,color:base.color},schoolFriendly:s<=2};
+  return {score:s,r:{code:base.code,name:base.name,color:base.color,short:base.short,ageGroup:base.ageGroup,desc:base.desc},schoolFriendly:s<=3};
 }
 
 // Auto-import from URL ?story=... on load
@@ -3381,26 +3383,73 @@ function voteFB(id,v){
   toast(f.vote==='up'?'\ud83d\udc4d Thanks for the thumbs up!':f.vote==='down'?'\ud83d\udc4e Noted \u2014 thanks for the feedback.':'Vote removed.');
 }
 function addCommentFB(id){
-  const ni=document.getElementById('cmtname_'+id),ti=document.getElementById('cmt_'+id);
-  if(!ti)return;const text=ti.value.trim();if(!text){ti.focus();return;}
-  const name=ni?ni.value.trim().slice(0,24):'';
-  const f=fbFor(id);f.comments.push({name:name||'Reader',text:text.slice(0,400),ts:Date.now()});saveFB(id,f);
-  refreshFB(id);toast('\ud83d\udcac Comment posted!');
+  const ni=document.getElementById('cmtname_'+id);
+  const ti=document.getElementById('cmt_'+id);
+  const ai=document.getElementById('cmtanntype_'+id);
+  if(!ti) return;
+  const text=ti.value.trim();
+  if(!text){ ti.focus(); return; }
+
+  const isAnnouncement = ai ? ai.checked : false;
+  let defaultAuthor = (currentUser && currentUser.username) ? ('@' + currentUser.username) : 'Reader';
+  const name = ni ? (ni.value.trim().slice(0,30) || defaultAuthor) : defaultAuthor;
+
+  const f=fbFor(id);
+  f.comments.push({
+    name: name,
+    text: text.slice(0,600),
+    isAnnouncement: isAnnouncement,
+    ts: Date.now()
+  });
+  saveFB(id, f);
+  refreshFB(id);
+  toast(isAnnouncement ? '📢 Server Announcement broadcasted!' : '💬 Comment posted!');
 }
+
 function renderFeedbackBar(sid,where){
   const f=fbFor(sid);
-  return `<div class="fbwrap fbw-${esc(sid)}" data-where="${where||''}" style="margin-top:12px;background:#fff8e7;border:1px dashed #b8860b;border-radius:10px;padding:12px">
+  const defaultUser = (currentUser && currentUser.username) ? ('@' + currentUser.username) : '';
+
+  const commentsHtml = f.comments.map(c => {
+    if(c.isAnnouncement){
+      return `<div style="background:linear-gradient(135deg,#fff1f2,#fef2f2);border:2px solid #ef4444;border-radius:10px;padding:12px 14px;margin-bottom:8px;box-shadow:0 2px 8px rgba(239,68,68,.12)">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap">
+          <span class="rb" style="background:#dc2626;color:#fff;font-weight:800;font-size:.78em;letter-spacing:1px;padding:2px 8px">📢 SERVER ANNOUNCEMENT</span>
+          <b style="color:#991b1b;font-size:.95em">👤 ${esc(c.name)}</b>
+          <span style="color:#991b1b;font-size:.78em;opacity:.8;margin-left:auto">${new Date(c.ts).toLocaleString()}</span>
+        </div>
+        <div style="font-size:1em;color:#7f1d1d;line-height:1.45;font-weight:600;margin-top:4px">${esc(c.text)}</div>
+      </div>`;
+    }
+    return `<div style="background:#fff;border:1px solid #d4c4a8;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:.9em">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+        <b style="color:#8b2500">${esc(c.name)}</b>
+        <span style="color:#6b4c3b;font-size:.78em">${new Date(c.ts).toLocaleDateString()}</span>
+      </div>
+      <div style="color:#2c1810;line-height:1.4">${esc(c.text)}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="fbwrap fbw-${esc(sid)}" data-where="${where||''}" style="margin-top:14px;background:#fff8e7;border:1px dashed #b8860b;border-radius:10px;padding:14px">
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center">
       <span style="font-size:.85em;color:#6b4c3b">${where==='end'?'Did you enjoy this adventure?':'Rate this adventure:'}</span>
-      <button class="fbtn ${f.vote==='up'?'on':''}" onclick="voteFB('${esc(sid)}','up')" title="Thumbs up">\ud83d\udc4d</button>
-      <button class="fbtn ${f.vote==='down'?'on down':''}" onclick="voteFB('${esc(sid)}','down')" title="Thumbs down">\ud83d\udc4e</button>
-      <span style="font-size:.85em;color:#6b4c3b">\ud83d\udcac ${f.comments.length} comment${f.comments.length===1?'':'s'}</span>
+      <button class="fbtn ${f.vote==='up'?'on':''}" onclick="voteFB('${esc(sid)}','up')" title="Thumbs up">👍</button>
+      <button class="fbtn ${f.vote==='down'?'on down':''}" onclick="voteFB('${esc(sid)}','down')" title="Thumbs down">👎</button>
+      <span style="font-size:.85em;color:#6b4c3b">💬 ${f.comments.length} message${f.comments.length===1?'':'s'}</span>
     </div>
-    <div style="margin-top:10px">${f.comments.map(c=>`<div style="background:#fff;border:1px solid #d4c4a8;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:.9em"><b>${esc(c.name)}</b> <span style="color:#6b4c3b;font-size:.8em">${new Date(c.ts).toLocaleDateString()}</span><br>${esc(c.text)}</div>`).join('')||'<div style="font-size:.85em;color:#6b4c3b;text-align:center">No comments yet \u2014 be the first!</div>'}</div>
-    <div style="display:flex;gap:6px;margin-top:8px">
-      <input type="text" id="cmtname_${esc(sid)}" placeholder="Name" style="width:100px;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:7px 9px;font-size:.9em">
-      <input type="text" id="cmt_${esc(sid)}" placeholder="Leave a comment..." style="flex:1;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:7px 9px;font-size:.9em" onkeydown="if(event.key==='Enter')addCommentFB('${esc(sid)}')">
-      <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="addCommentFB('${esc(sid)}')">Post</button>
+    
+    <div style="margin-top:12px">${commentsHtml || '<div style="font-size:.85em;color:#6b4c3b;text-align:center;padding:6px 0">No comments yet — be the first to leave feedback or make an announcement!</div>'}</div>
+    
+    <div style="margin-top:10px;background:#fffdfa;border:1px solid #d4c4a8;border-radius:8px;padding:10px">
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input type="text" id="cmtname_${esc(sid)}" placeholder="Your name or @handle" value="${esc(defaultUser)}" style="width:140px;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:7px 9px;font-size:.9em">
+        <input type="text" id="cmt_${esc(sid)}" placeholder="Write your comment or broadcast..." style="flex:1;background:#fff;border:1px solid #d4c4a8;border-radius:6px;padding:7px 9px;font-size:.9em" onkeydown="if(event.key==='Enter')addCommentFB('${esc(sid)}')">
+        <button class="btn btn-sec" style="padding:6px 14px;font-size:.88em;background:linear-gradient(135deg,#8b2500,#b8860b);color:#fff" onclick="addCommentFB('${esc(sid)}')">Post</button>
+      </div>
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:.85em;color:#991b1b;cursor:pointer;user-select:none;font-weight:700">
+        <input type="checkbox" id="cmtanntype_${esc(sid)}" style="accent-color:#dc2626;cursor:pointer">
+        <span>📢 Turn into a <b>Server Announcement</b></span>
+      </label>
     </div>
   </div>`;
 }
