@@ -4034,10 +4034,11 @@ function openAuthModal(step){
         <input type="email" id="authEmail" class="auth-inp" placeholder="name@example.com" value="${esc(_pendingEmail||'')}" required autofocus autocomplete="email">
         
         <label style="display:block;text-align:left;font-size:.85em;font-weight:700;color:#8b2500;margin-bottom:4px">Creator Username <span style="font-weight:400;color:#6b4c3b">(shown on your stories)</span></label>
-        <div style="position:relative;margin-bottom:14px">
+        <div style="position:relative;margin-bottom:6px">
           <span style="position:absolute;left:12px;top:12px;color:#8b2500;font-weight:700;font-size:1.05em">@</span>
-          <input type="text" id="authUsername" class="auth-inp" placeholder="DragonSlayer99" value="${esc(_pendingUsername||'')}" style="padding-left:30px;margin-bottom:0" required maxlength="25" pattern="[a-zA-Z0-9_]{3,25}" title="3 to 25 letters, numbers, or underscores">
+          <input type="text" id="authUsername" class="auth-inp" placeholder="DragonSlayer99" value="${esc(_pendingUsername||'')}" style="padding-left:30px;margin-bottom:0" required maxlength="25" pattern="[a-zA-Z0-9_]{3,25}" title="3 to 25 letters, numbers, or underscores" oninput="const e=document.getElementById('authUsernameErr');if(e)e.style.display='none';this.style.borderColor='#d4c4a8'">
         </div>
+        <div id="authUsernameErr" style="display:none;color:#dc2626;font-size:.82em;font-weight:700;text-align:left;margin-bottom:6px"></div>
         <div style="font-size:.78em;color:#6b4c3b;text-align:left;margin-bottom:14px">3-25 characters. Letters, numbers, and underscores only.</div>
 
         <button type="submit" class="btn" style="width:100%;padding:12px;font-size:1.05em;background:linear-gradient(135deg,#8b2500,#b8860b)">✉️ Send 6-Digit Code →</button>
@@ -4162,12 +4163,20 @@ async function handleSendOTP(e){
     return;
   }
 
-  // Check if username is taken by another email
+  // Check if username is taken by another account
   const reg = getAccountRegistry();
   for(const k in reg){
     if(k.toLowerCase() !== email.toLowerCase() && reg[k].username && reg[k].username.toLowerCase() === uname.toLowerCase()){
-      toast('Username @' + uname + ' is already claimed. Please choose another.');
+      alert('Username is token please select another username');
+      toast('Username is token please select another username');
+      const errEl = document.getElementById('authUsernameErr');
+      if(errEl){
+        errEl.textContent = 'Username is token please select another username';
+        errEl.style.display = 'block';
+      }
+      inpUser.style.borderColor = '#dc2626';
       inpUser.focus();
+      inpUser.select();
       return;
     }
   }
@@ -4314,7 +4323,7 @@ function promptChangeUsername(){
   const reg = getAccountRegistry();
   for(const k in reg){
     if(k.toLowerCase() !== currentUser.email.toLowerCase() && reg[k].username && reg[k].username.toLowerCase() === clean.toLowerCase()){
-      alert('That username is already taken by another account.');
+      alert('Username is token please select another username');
       return;
     }
   }
