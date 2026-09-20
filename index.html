@@ -205,6 +205,14 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 .chat-bub.ai{background:#fff;border:1px solid #d4c4a8;border-bottom-left-radius:4px;align-self:flex-start}
 .chat-bub.me{background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
 .chat-bub.err{background:#fde8e8;border:1px solid #991b1b;color:#7f1d1d;align-self:center;font-size:.85em}
+.lgrow{display:flex;gap:10px;align-items:flex-start;background:#fff;border:2px solid #991b1b;border-radius:10px;padding:12px;margin-top:18px;cursor:pointer;user-select:none}
+.lgrow:hover{border-color:#8b2500}
+.lgrow input{position:absolute;opacity:0;pointer-events:none}
+.lgbox{width:26px;height:26px;min-width:26px;background:#f4ecd8;border:2px solid #991b1b;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:1.25em;transition:all .15s}
+.lgrow input:checked ~ .lgbox{background:#15803d;border-color:#15803d}
+.lgrow input:checked ~ .lgbox:after{content:'\2713'}
+.lgrow.err{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.3);animation:lshake .3s}
+@keyframes lshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
 </style>
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#2c1810;color:#f4ecd8;padding:10px 20px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.3);opacity:0;transition:all .25s;z-index:200;font-weight:700}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
@@ -1336,7 +1344,7 @@ function showPassage(pid){
 
 function gotoContinue(fromPid,tgtPid){
   _playPrev=fromPid;
-  showPassage(tgtPid);
+  showPassage(resolveChoiceDest(cyoa.passages,findPidByLabel,tgtPid,null));
 }
 function choose(pid,i){
   const p=cyoa.passages[pid];
@@ -1899,6 +1907,11 @@ function openPub(step){
           </label>
         </div>
 
+        <label class="lgrow" id="pubLegalRow">
+          <input type="checkbox" id="pubLegal">
+          <span class="lgbox" aria-hidden="true"></span>
+          <span style="font-size:.92em;line-height:1.5"><b style="color:#8b2500">Content promise (required):</b> There is no illegal content in the story. If there is, I will cover all lawsuits.</span>
+        </label>
         <div style="display:flex;gap:10px;margin-top:22px;justify-content:flex-end;flex-wrap:wrap">
           <button class="btn btn-sec" onclick="closePub()">Cancel</button>
           <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);font-size:1.05em;padding:11px 22px" onclick="pubAnalyze()">🤖 AI Analyze &amp; Publish →</button>
@@ -1986,6 +1999,13 @@ function pubAnalyze(){
   if(title.length<3){toast('Title is too short');titleEl.focus();return;}
   if(!desc){toast('Add a short description (one or two sentences)');descEl.focus();return;}
   if(desc.length<10){toast('Description is too short — tell readers what it\u2019s about');descEl.focus();return;}
+  const legal=document.getElementById('pubLegal');
+  if(!legal||!legal.checked){
+    const row=document.getElementById('pubLegalRow');
+    if(row){row.classList.add('err');setTimeout(()=>row.classList.remove('err'),1600);}
+    toast('Check the box to confirm there is no illegal content in your story.');
+    return;
+  }
   // Sync back to story title input too
   document.getElementById('storyTitle').value=title;saveTitle();
   // Normalize series: trim each, dedupe (case-insensitive), keep order
@@ -2525,9 +2545,9 @@ function doSmartConvert(text){
       block.choices.forEach((ctext,ci)=>{
         const lower=ctext.toLowerCase();
         let targetType='passage',target='';
-        if(/(die|death|kill|ends bad|give up|fail|perish|no escape)/.test(lower)){
+        if(/\b(die|dies|died|death|kill|kills|killed|perish|fail|give up|ends bad|no escape)\b/.test(lower)){
           targetType='death';target=passages[deathId].title;
-        }else if(/(win|victory|succeed|triumph|make it|escape|home at last|happy ending)/.test(lower)){
+        }else if(/\b(win|wins|won|victory|succeed|succeeded|triumph|make it|escape|home at last|happy ending|safe at home)\b/.test(lower)){
           targetType='victory';target='victory';
         }else{
           const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'a different path';
