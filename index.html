@@ -2653,13 +2653,13 @@ function showExportCode(){
      <div style="text-align:right;margin-top:12px"><button class="btn btn-gold" onclick="closeModal()">Done</button></div>`);
 }
 
-const STRIPE_MONTHLY='https://buy.stripe.com/test_dRm9ATdpQ7tHecheYv97G00';
+const STRIPE_MONTHLY='https://buy.stripe.com/test_28E14n71scO1ech7w397G02';
 const STRIPE_YEARLY='https://buy.stripe.com/test_dRm9ATdpQ7tHecheYv97G00';
 
 function showProPage(feature,onUpgrade){
   const ctx=feature==='media'?'photos, videos, and sound effects':'extra features';
   const wasPro=isPro;
-  const html=`<style>.pro-features li{margin:6px 0;list-style:none;padding-left:26px;position:relative}.pro-features li:before{content:'✅';position:absolute;left:0;color:#15803d;font-weight:900}.pro-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.pro-plan{background:#fff;border:2px solid #d4c4a8;border-radius:12px;padding:16px;text-align:center;position:relative;transition:all .15s}.pro-plan:hover{border-color:#b8860b;transform:translateY(-2px);box-shadow:0 8px 20px rgba(184,134,11,.2)}.pro-plan.featured{border-color:#b8860b;background:linear-gradient(135deg,#fff8e7,#fde68a)}.pro-plan.featured:after{content:'⭐ BEST VALUE';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#b8860b;color:#2c1810;font-size:.7em;padding:3px 10px;border-radius:20px;font-weight:900;letter-spacing:.5px}.pro-tier{font-size:.85em;letter-spacing:2px;color:#6b4c3b;text-transform:uppercase}.pro-price{font-size:2em;font-weight:900;color:#8b2500;margin:4px 0}.pro-period{font-size:.8em;color:#6b4c3b}.pro-cta{margin-top:10px;width:100%;padding:10px;border-radius:8px;background:linear-gradient(135deg,#635bff,#4f46e5);color:#fff;border:none;font-weight:900;cursor:pointer;font-family:inherit;font-size:.95em}.pro-cta:hover{filter:brightness(1.1)}.pro-test{font-size:.72em;color:#6b4c3b;margin-top:10px;padding:8px;background:#faf3e3;border-radius:6px}.pro-confirmed{margin-top:12px;text-align:center}</style>
+  const html=`<style>.pro-features li{margin:6px 0;list-style:none;padding-left:26px;position:relative}.pro-features li:before{content:'✅';position:absolute;left:0;color:#15803d;font-weight:900}.pro-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.pro-plan{background:#fff;border:2px solid #d4c4a8;border-radius:12px;padding:16px;text-align:center;position:relative;transition:all .15s}.pro-plan:hover{border-color:#b8860b;transform:translateY(-2px);box-shadow:0 8px 20px rgba(184,134,11,.2)}.pro-plan.featured{border-color:#b8860b;background:linear-gradient(135deg,#fff8e7,#fde68a)}.pro-plan.featured:after{content:'⭐ BEST VALUE';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#b8860b;color:#2c1810;font-size:.7em;padding:3px 10px;border-radius:20px;font-weight:900;letter-spacing:.5px}.pro-tier{font-size:.85em;letter-spacing:2px;color:#6b4c3b;text-transform:uppercase}.pro-price{font-size:2em;font-weight:900;color:#8b2500;margin:4px 0}.pro-period{font-size:.8em;color:#6b4c3b}.pro-cta{margin-top:10px;width:100%;padding:10px;border-radius:8px;background:linear-gradient(135deg,#635bff,#4f46e5);color:#fff;border:none;font-weight:900;cursor:pointer;font-family:inherit;font-size:.95em}.pro-cta:hover{filter:brightness(1.1)}.pro-test{font-size:.72em;color:#6b4c3b;margin-top:10px;padding:8px;background:#faf3e3;border-radius:6px}</style>
   <p style="text-align:center;margin-bottom:6px;font-size:1.1em">Unlock the next level of storytelling.</p>
   <p style="text-align:center;font-size:.9em;color:#6b4c3b;margin-bottom:6px">${feature?`This feature (${ctx}) requires <b>Storyteller Pro</b>.`:''}</p>
   <ul class="pro-features" style="max-width:420px;margin:14px auto 0;background:#faf3e3;border-radius:10px;padding:14px 18px">
@@ -2684,24 +2684,37 @@ function showProPage(feature,onUpgrade){
       <button class="pro-cta" onclick="startCheckout('yearly')">💳 Subscribe Yearly</button>
     </div>
   </div>
-  <div class="pro-test"><b>Test mode:</b> Checkout opens in Stripe's test environment. Use test card <code style="background:#fff;padding:1px 6px;border-radius:4px">4242 4242 4242 4242</code> with any future expiry/CVC.</div>
-  <div class="pro-confirmed"><button class="btn btn-gold" onclick="confirmPro()">I completed my payment →</button></div>
+  <div class="pro-test"><b>Test mode:</b> Checkout opens in Stripe's test environment. Use test card <code style="background:#fff;padding:1px 6px;border-radius:4px">4242 4242 4242 4242</code> with any future expiry/CVC. Pro unlocks automatically once your payment completes.</div>
   ${wasPro?'<p style="text-align:center;margin-top:10px"><button class="btn btn-sec" onclick="downgradePro()" style="font-size:.8em;padding:4px 10px">Cancel subscription</button></p>':''}
   <div style="text-align:right;margin-top:10px"><button class="btn btn-sec" onclick="closeModal()">Maybe later</button></div>`;
   showModal('✨ Storyteller Pro',html);
-  if(onUpgrade)window._proUpgradeCb=onUpgrade;
 }
 function startCheckout(plan){
   const url=plan==='yearly'?STRIPE_YEARLY:STRIPE_MONTHLY;
-  window.open(url,'_blank','noopener');
-  toast('Complete checkout in the new tab, then click "I completed my payment"');
+  const w=window.open(url,'_blank','noopener');
+  if(!w){location.href=url;return;}
+  toast('Opening Stripe checkout — Pro unlocks automatically once payment completes.');
 }
-function confirmPro(){
+// Called at startup: Stripe Payment Links redirect back to the app after a
+// successful payment (set "After payment" in the Stripe dashboard to this
+// app's URL). Success is signaled by payment=success / pro=1 / session_id
+// in the URL. Only then is Pro unlocked — there is no manual unlock button.
+function checkPaymentReturn(){
+  let ok=false;
+  try{
+    const q=new URLSearchParams(location.search);
+    ok=q.get('payment')==='success'||q.get('pro')==='1'||q.get('pro')==='true'||!!q.get('session_id')||/#pro(-success)?/i.test(location.hash);
+  }catch(e){return;}
+  if(!ok)return;
   savePro(true);
-  renderList();try{renderEditor();}catch(e){}renderLib();renderProBadge();
-  closeModal();
-  toast('🌟 Welcome to Storyteller Pro! All media features unlocked.');
-  if(window._proUpgradeCb){window._proUpgradeCb();window._proUpgradeCb=null;}
+  renderList();try{renderEditor();}catch(e){}renderLib();renderAgeBadge();
+  try{
+    const u=new URL(location.href);
+    ['payment','pro','session_id'].forEach(k=>u.searchParams.delete(k));
+    u.hash='';
+    history.replaceState(null,'',u.pathname+u.search+u.hash);
+  }catch(e){}
+  toast('🌟 Payment complete — welcome to Storyteller Pro! All media features unlocked.');
 }
 function downgradePro(){
   if(!confirm('Cancel your Pro subscription? Photos/videos/sounds you added will stay attached to existing passages, but you won\'t be able to add new media.'))return;
@@ -2835,7 +2848,7 @@ function closeOverlay(id){
 try{killAllOverlays();}catch(e){console.error('killAllOverlays error',e);}
 window.addEventListener('error',e=>{console.error('Storyteller error:',e.message,e.filename,e.lineno);});
 window.addEventListener('load',()=>{try{killAllOverlays();}catch(e){console.error(e);}setTimeout(()=>{try{killAllOverlays();}catch(e){}},100);setTimeout(()=>{try{killAllOverlays();}catch(e){}},500);setTimeout(()=>{try{killAllOverlays();}catch(e){}},1500);});
-load();loadTitle();loadLib();loadPlayed();loadAge();loadPro();
+load();loadTitle();loadLib();loadPlayed();loadAge();loadPro();checkPaymentReturn();
 fixOwnedStats();
 renderList();renderLib();updateLibCount();renderAgeBadge();
 if(!curPid){const s=findPidByLabel('start');if(s)curPid=s;}
