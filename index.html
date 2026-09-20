@@ -2286,7 +2286,7 @@ function renderLib(){
     standalone.sort((a,b)=>b.publishedAt-a.publishedAt).forEach(s=>{html+=libCard(s);});
     html+='</div>';
   }
-  mine.innerHTML=html;
+  mine.innerHTML=html + (typeof renderSponsoredAdHTML==="function"?renderSponsoredAdHTML("library"):"");
 }
 function findLibIdx(id){return library.findIndex(x=>x.id===id);}
 function findAnyStory(id){
@@ -2295,6 +2295,34 @@ function findAnyStory(id){
   const c=getCommunityStories().find(x=>x.id===id);
   if(c)return {story:c,index:-1,inLib:false};
   return null;
+}
+
+// ================= SPONSORED ADS SYSTEM (Free users have ads; Yearly Pass is Ad-free) =================
+const SPONSORED_ADS = [
+  { sponsor: 'DragonQuest RPG', title: 'Forge Your Hero in DragonQuest', text: 'Venture into dangerous realms with 100+ character builds, epic dungeons, and co-op loot!', cta: 'Play Free', link: '#' },
+  { sponsor: 'Mythic Quill Books', title: 'Audiobooks for Fantasy Readers', text: 'Listen to thousands of full-cast choose-your-own-path novels anywhere on mobile.', cta: 'Listen Now', link: '#' },
+  { sponsor: 'Arcane Dice Co.', title: 'Handcrafted Liquid Core Polyhedral Dice', text: 'Upgrade your game night table with resin sharp-edge dice that shimmer in the light.', cta: 'Shop Dice', link: '#' },
+  { sponsor: 'GuildCraft Worldbuilder', title: 'World Maps & Lore Organizer', text: 'Create regional maps, timeline lore, and faction trees for your adventure campaigns.', cta: 'Try Map Maker', link: '#' }
+];
+
+function renderSponsoredAdHTML(slot){
+  if(isPro) return ''; // Ad-free for Yearly Pass / Pro
+  const ad = SPONSORED_ADS[Math.floor(Math.random() * SPONSORED_ADS.length)];
+  return `
+    <div class="sponsored-ad-card" style="margin:14px 0;background:linear-gradient(135deg,#fcfbf7,#f5eee0);border:1px dashed #b8860b;border-radius:10px;padding:12px 16px;box-shadow:0 2px 6px rgba(0,0,0,.04);position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:.68em;font-weight:800;letter-spacing:1px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;padding:2px 6px;border-radius:4px;text-transform:uppercase">ADVERTISEMENT · SPONSORED</span>
+        <a href="javascript:void(0)" onclick="showProPage('ads')" style="font-size:.75em;color:#b8860b;text-decoration:underline;font-weight:700">Remove Ads with Yearly Pass ✨</a>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:200px">
+          <div style="font-weight:700;color:#8b2500;font-size:.95em">${esc(ad.title)}</div>
+          <div style="font-size:.82em;color:#6b4c3b;margin-top:2px;line-height:1.4">${esc(ad.text)}</div>
+        </div>
+        <button class="btn btn-sec" style="font-size:.8em;padding:5px 12px;background:#fff" onclick="toast('Opening sponsor: ${esc(ad.sponsor)}')">${esc(ad.cta)} ↗</button>
+      </div>
+    </div>
+  `;
 }
 function libCard(s){
   if(!s.rating||!s.rating.r)s.rating=rateFromScore((s.rating&&s.rating.score)|2);
@@ -2483,7 +2511,7 @@ function readStoryObject(s,addToLib,idx){
       </div>
       <div style="font-style:italic;color:#6b4c3b;font-size:.92em">${esc(s.description||'')}</div>
     </div>
-    ${renderFeedbackBar(s.id)}${renderMediaHTML(p)}<div class="ptxt">${esc(p.text)}</div>`;
+    ${renderSponsoredAdHTML("reader")}${renderFeedbackBar(s.id)}${renderMediaHTML(p)}<div class="ptxt">${esc(p.text)}</div>`;
     if(p.type==='continue'){
       const tid=p.contTarget?findTgt({target:p.contTarget,targetType:'passage'}):null;
       const tP=tid?passages[tid]:null;
@@ -3080,39 +3108,116 @@ const STRIPE_MONTHLY='https://buy.stripe.com/test_28E14n71scO1ech7w397G02';
 const STRIPE_YEARLY='https://buy.stripe.com/test_dRm9ATdpQ7tHecheYv97G00';
 
 function showProPage(feature,onUpgrade){
-  const ctx=feature==='media'?'photos, videos, and sound effects':'extra features';
+  const ctx=feature==='media'?'photos, videos, and sound effects':(feature==='ads'?'Ad-free reading':'extra features');
   const wasPro=isPro;
-  const html=`<style>.pro-features li{margin:6px 0;list-style:none;padding-left:26px;position:relative}.pro-features li:before{content:'✅';position:absolute;left:0;color:#15803d;font-weight:900}.pro-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}.pro-plan{background:#fff;border:2px solid #d4c4a8;border-radius:12px;padding:16px;text-align:center;position:relative;transition:all .15s}.pro-plan:hover{border-color:#b8860b;transform:translateY(-2px);box-shadow:0 8px 20px rgba(184,134,11,.2)}.pro-plan.featured{border-color:#b8860b;background:linear-gradient(135deg,#fff8e7,#fde68a)}.pro-plan.featured:after{content:'⭐ BEST VALUE';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#b8860b;color:#2c1810;font-size:.7em;padding:3px 10px;border-radius:20px;font-weight:900;letter-spacing:.5px}.pro-tier{font-size:.85em;letter-spacing:2px;color:#6b4c3b;text-transform:uppercase}.pro-price{font-size:2em;font-weight:900;color:#8b2500;margin:4px 0}.pro-period{font-size:.8em;color:#6b4c3b}.pro-cta{margin-top:10px;width:100%;padding:10px;border-radius:8px;background:linear-gradient(135deg,#635bff,#4f46e5);color:#fff;border:none;font-weight:900;cursor:pointer;font-family:inherit;font-size:.95em}.pro-cta:hover{filter:brightness(1.1)}.pro-test{font-size:.72em;color:#6b4c3b;margin-top:10px;padding:8px;background:#faf3e3;border-radius:6px}</style>
-  <p style="text-align:center;margin-bottom:6px;font-size:1.1em">Unlock the next level of storytelling.</p>
-  <p style="text-align:center;font-size:.9em;color:#6b4c3b;margin-bottom:6px">${feature?`This feature (${ctx}) requires <b>Storyteller Pro</b>.`:''}</p>
-  <ul class="pro-features" style="max-width:420px;margin:14px auto 0;background:#faf3e3;border-radius:10px;padding:14px 18px">
-    <li><b>🖼 Photos</b> in every passage (upload or URL)</li>
-    <li><b>🎬 Videos</b> — YouTube, Vimeo, mp4/webm uploads</li>
-    <li><b>🔊 Sound effects &amp; music</b> that play when readers arrive</li>
-    <li><b>📁 File upload</b> — images/videos/audio attached directly</li>
-    <li><b>Unlimited</b> passages and media (no caps)</li>
-    <li>Supports development of future features ♥</li>
-  </ul>
+  const html=`<style>
+    .pro-plans{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 14px}
+    .pro-plan{background:#fff;border:2px solid #d4c4a8;border-radius:12px;padding:16px;text-align:center;position:relative;transition:all .15s}
+    .pro-plan:hover{border-color:#b8860b;transform:translateY(-2px);box-shadow:0 8px 20px rgba(184,134,11,.2)}
+    .pro-plan.featured{border-color:#b8860b;background:linear-gradient(135deg,#fff8e7,#fde68a)}
+    .pro-plan.featured:after{content:'⭐ BEST VALUE';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#b8860b;color:#2c1810;font-size:.7em;padding:3px 10px;border-radius:20px;font-weight:900;letter-spacing:.5px}
+    .pro-tier{font-size:.85em;letter-spacing:2px;color:#6b4c3b;text-transform:uppercase}
+    .pro-price{font-size:2em;font-weight:900;color:#8b2500;margin:4px 0}
+    .pro-period{font-size:.8em;color:#6b4c3b}
+    .pro-cta{margin-top:10px;width:100%;padding:10px;border-radius:8px;background:linear-gradient(135deg,#635bff,#4f46e5);color:#fff;border:none;font-weight:900;cursor:pointer;font-family:inherit;font-size:.95em}
+    .pro-cta:hover{filter:brightness(1.1)}
+    .pro-test{font-size:.75em;color:#6b4c3b;margin-top:10px;padding:8px;background:#faf3e3;border-radius:6px}
+    .compare-tbl{width:100%;border-collapse:collapse;margin:14px 0;font-size:.86em;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #d4c4a8}
+    .compare-tbl th{background:#2c1810;color:#f4ecd8;padding:9px 10px;text-align:left}
+    .compare-tbl td{padding:8px 10px;border-bottom:1px solid #ebdcc5}
+    .compare-tbl tr:last-child td{border-bottom:none}
+    .compare-tbl tr:nth-child(even){background:#fffdfa}
+    .compare-tbl .col-free{text-align:center;color:#6b4c3b;font-weight:600;width:24%}
+    .compare-tbl .col-pro{text-align:center;color:#8b2500;font-weight:800;background:rgba(253,230,138,.25);width:26%}
+  </style>
+  <div style="text-align:center">
+    <div style="font-size:2.4em;margin-bottom:4px">✨</div>
+    <h2 style="color:#8b2500;margin-bottom:4px;font-size:1.5em">Storyteller Pass &amp; Membership</h2>
+    <p style="font-size:.9em;color:#6b4c3b;margin-bottom:10px">${feature?`This feature (${ctx}) requires <b>Storyteller Yearly Pass / Pro</b>.`:'Compare Free users vs. Yearly Pass members below:'}</p>
+  </div>
+
+  <table class="compare-tbl">
+    <thead>
+      <tr>
+        <th>Feature</th>
+        <th style="text-align:center">Free users</th>
+        <th style="text-align:center;color:#fbbf24">Yearly Pass ⭐</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Play public adventures</b></td>
+        <td class="col-free">Yes</td>
+        <td class="col-pro">Yes</td>
+      </tr>
+      <tr>
+        <td><b>Create stories manually</b></td>
+        <td class="col-free">Yes</td>
+        <td class="col-pro">Yes</td>
+      </tr>
+      <tr>
+        <td><b>Publish and share stories</b></td>
+        <td class="col-free">Yes</td>
+        <td class="col-pro">Yes</td>
+      </tr>
+      <tr>
+        <td><b>Premium story themes</b></td>
+        <td class="col-free">Limited</td>
+        <td class="col-pro">All themes</td>
+      </tr>
+      <tr>
+        <td><b>AI story generation</b></td>
+        <td class="col-free">Small monthly limit</td>
+        <td class="col-pro">Larger monthly allowance</td>
+      </tr>
+      <tr>
+        <td><b>Export stories</b></td>
+        <td class="col-free">Basic</td>
+        <td class="col-pro">Full export options</td>
+      </tr>
+      <tr>
+        <td><b>Ads</b></td>
+        <td class="col-free">If you use ads (Sponsored)</td>
+        <td class="col-pro">Ad-free ✨</td>
+      </tr>
+      <tr>
+        <td><b>Private drafts</b></td>
+        <td class="col-free">Limited</td>
+        <td class="col-pro">More or unlimited</td>
+      </tr>
+      <tr>
+        <td><b>Special profile badge</b></td>
+        <td class="col-free">No</td>
+        <td class="col-pro">Yes (⭐ VIP)</td>
+      </tr>
+      <tr>
+        <td><b>Early access to new features</b></td>
+        <td class="col-free">No</td>
+        <td class="col-pro">Yes 🚀</td>
+      </tr>
+    </tbody>
+  </table>
+
   <div class="pro-plans">
     <div class="pro-plan">
-      <div class="pro-tier">Monthly</div>
+      <div class="pro-tier">Monthly Pass</div>
       <div class="pro-price">$4.99</div>
       <div class="pro-period">per month</div>
-      <button class="pro-cta" onclick="startCheckout('monthly')">💳 Subscribe Monthly</button>
+      <button class="pro-cta" onclick="startCheckout('monthly')">💳 Monthly Pass</button>
     </div>
     <div class="pro-plan featured">
-      <div class="pro-tier">Yearly</div>
+      <div class="pro-tier">Yearly Pass</div>
       <div class="pro-price">$39</div>
       <div class="pro-period">$3.25/mo · billed yearly · save 35%</div>
-      <button class="pro-cta" onclick="startCheckout('yearly')">💳 Subscribe Yearly</button>
+      <button class="pro-cta" onclick="startCheckout('yearly')">⭐ Get Yearly Pass</button>
     </div>
   </div>
-  <div class="pro-test"><b>Test mode:</b> Checkout opens in Stripe's test environment. Use test card <code style="background:#fff;padding:1px 6px;border-radius:4px">4242 4242 4242 4242</code> with any future expiry/CVC. Pro unlocks automatically once your payment completes.</div>
+  <div class="pro-test"><b>Test checkout available:</b> Stripe test environment. Use test card <code style="background:#fff;padding:1px 6px;border-radius:4px">4242 4242 4242 4242</code>. Yearly Pass unlocks automatically upon checkout!</div>
   ${wasPro?'<p style="text-align:center;margin-top:10px"><button class="btn btn-sec" onclick="downgradePro()" style="font-size:.8em;padding:4px 10px">Cancel subscription</button></p>':''}
-  <div style="text-align:right;margin-top:10px"><button class="btn btn-sec" onclick="closeModal()">Maybe later</button></div>`;
-  showModal('✨ Storyteller Pro',html);
+  <div style="text-align:right;margin-top:10px"><button class="btn btn-sec" onclick="closeModal()">Close</button></div>`;
+
+  showModal(wasPro?'✨ Manage Yearly Pass':'✨ Upgrade to Yearly Pass', html);
 }
-function isIOSApp(){try{return window.__CYOP_IOS__===true;}catch(e){return false;}}
 function startCheckout(plan){
   if(isIOSApp()){toast('\ud83d\udcf1 Subscriptions aren\u2019t available in the iOS app yet (Apple requires in-app purchase). Use the web version to subscribe.');return;}
   const url=plan==='yearly'?STRIPE_YEARLY:STRIPE_MONTHLY;
@@ -4092,14 +4197,40 @@ async function sendRealVerificationEmail(toEmail, username, code){
   _emailDeliveryStatus = 'sending';
   const mailSubject = 'Your Storyteller Verification Code: ' + code;
   const mailMessage = `Hello @${username},\n\nYour 6-digit verification code for Storyteller CYOP is:\n\n[ ${code} ]\n\nEnter this code to sign in and access your saved adventures.\n\nHappy storytelling!`;
-  
+
+  const customKey = localStorage.getItem('sf_email_service_key') || '';
+  const serviceType = localStorage.getItem('sf_email_service_type') || 'web3forms';
+
   try {
-    // Attempt real SMTP/Email delivery endpoint
+    // 1. Resend API support
+    if(serviceType === 'resend' && customKey){
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + customKey
+        },
+        body: JSON.stringify({
+          from: 'Storyteller <onboarding@resend.dev>',
+          to: [toEmail],
+          subject: mailSubject,
+          text: mailMessage
+        })
+      });
+      if(res.ok){
+        _emailDeliveryStatus = 'sent';
+        updateEmailStatusBanner('sent');
+        return true;
+      }
+    }
+
+    // 2. Web3Forms support (default or custom key)
+    const accessKey = customKey || '0cb046d3-24ce-4279-9fb4-5164bc7c2b64';
     const resp = await fetch('https://api.web3forms.com/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
       body: JSON.stringify({
-        access_key: '0cb046d3-24ce-4279-9fb4-5164bc7c2b64',
+        access_key: accessKey,
         subject: mailSubject,
         from_name: 'Storyteller Verification',
         to_email: toEmail,
@@ -4109,12 +4240,11 @@ async function sendRealVerificationEmail(toEmail, username, code){
     });
     if(resp.ok){
       _emailDeliveryStatus = 'sent';
-      console.log('Real verification email dispatched successfully to', toEmail);
       updateEmailStatusBanner('sent');
       return true;
     }
   } catch(err) {
-    console.warn('Live mail network dispatch encountered error, providing instant preview fallback:', err);
+    console.warn('Live mail network dispatch encountered error, providing instant fallback:', err);
   }
   _emailDeliveryStatus = 'fallback';
   updateEmailStatusBanner('fallback');
@@ -4265,6 +4395,48 @@ function handleVerifyOTP(e){
   toast('Signed in as @' + user.username + ' (' + user.email + ') ✅');
 }
 
+
+function openEmailConfigModal(){
+  const curKey = localStorage.getItem('sf_email_service_key') || '';
+  const curService = localStorage.getItem('sf_email_service_type') || 'smtp';
+  showModal('✉️ Connect Real Email Dispatch', `
+    <div style="padding:4px 0">
+      <div style="font-size:2em;text-align:center;margin-bottom:6px">📬</div>
+      <h3 style="color:#8b2500;text-align:center;margin-bottom:6px">Real Email Dispatcher Setup</h3>
+      <p style="font-size:.88em;color:#6b4c3b;line-height:1.5;margin-bottom:14px">
+        By default, client-side browsers cannot connect to port 25/587 SMTP directly without an API token (due to browser CORS/egress security).
+        You can plug in your free <b>Resend</b>, <b>SendGrid</b>, or <b>Web3Forms</b> API key below so emails land directly in user inboxes!
+      </p>
+
+      <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">Email Dispatch Service</label>
+      <select id="cfgEmailService" style="width:100%;padding:9px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:12px">
+        <option value="web3forms" ${curService==='web3forms'?'selected':''}>Web3Forms Free API (Instant Email)</option>
+        <option value="resend" ${curService==='resend'?'selected':''}>Resend API (resend.com)</option>
+        <option value="sendgrid" ${curService==='sendgrid'?'selected':''}>SendGrid API (api.sendgrid.com)</option>
+      </select>
+
+      <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">Your Service API Key / Access Token</label>
+      <input type="text" id="cfgEmailKey" value="${esc(curKey)}" placeholder="e.g. re_123456... or Web3Forms access key" style="width:100%;padding:9px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:10px">
+      <div style="font-size:.78em;color:#6b4c3b;margin-bottom:16px">Your access key is saved only in your local browser and used whenever a verification code is dispatched.</div>
+
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
+        <button class="btn" onclick="saveEmailConfig()">Save Dispatcher</button>
+      </div>
+    </div>
+  `);
+}
+
+function saveEmailConfig(){
+  const k = document.getElementById('cfgEmailKey').value.trim();
+  const s = document.getElementById('cfgEmailService').value;
+  try{
+    localStorage.setItem('sf_email_service_key', k);
+    localStorage.setItem('sf_email_service_type', s);
+  }catch(e){}
+  closeModal();
+  toast('Email dispatcher configured! ✅');
+}
 function openAccountDetails(){
   if(!currentUser){
     openAuthModal('email');
@@ -4297,7 +4469,7 @@ function openAccountDetails(){
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-green" style="padding:6px 12px;font-size:.85em" onclick="manualSaveAccountMemory()">💾 Save State Now</button>
           <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="manualRestoreAccountMemory()">🔄 Restore From Memory</button>
-          <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="promptChangeUsername()">✏️ Change Username</button>
+          <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="promptChangeUsername()">✏️ Change Username</button><button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="openEmailConfigModal()">✉️ Email Setup</button>
         </div>
       </div>
 
