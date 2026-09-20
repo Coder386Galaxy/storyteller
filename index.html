@@ -1356,7 +1356,13 @@ function showPassage(pid){
     }
     // Single Continue button → advances to p.contTarget
     if(!tgt){
-      html+=`<div class="pend"><p style="color:#991b1b;text-align:center">— The story ends here —</p><button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+      const out=detectEndingOutcome(p.text,'victory');
+      if(out==='death'){
+        box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend death"><h2>💀 You have died...</h2><p>${esc(p.text||'Your journey ends here.')}</p><button class="btn btn-red" onclick="playStory()">↻ Try Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back to Builder</button></div>`;
+        return;
+      }
+      box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(p.text||'You made it to the end!')}</p><button class="btn btn-green" onclick="playStory()">↻ Play Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back to Builder</button></div>`;
+      return;
     }else{
       html+=`<button class="pchoice cont" onclick="gotoContinue(${JSON.stringify(pid)},${JSON.stringify(tgt)})"><span class="l">➡</span>Continue →</button>`;
     }
@@ -1367,7 +1373,13 @@ function showPassage(pid){
     if(fwd){
       html+=`<button class="pchoice cont" onclick="gotoContinue(${JSON.stringify(pid)},${JSON.stringify(fwd)})"><span class="l">➡</span><em>Continue →</em></button>`;
     }else{
-      html+=`<div class="pend"><p style="color:#991b1b;text-align:center">— The story ends here —</p><button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+      const out=detectEndingOutcome(p.text,'victory');
+      if(out==='death'){
+        box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend death"><h2>💀 You have died...</h2><p>${esc(p.text||'Your journey ends here.')}</p><button class="btn btn-red" onclick="playStory()">↻ Try Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back to Builder</button></div>`;
+        return;
+      }
+      box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(p.text||'You made it to the end!')}</p><button class="btn btn-green" onclick="playStory()">↻ Play Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back to Builder</button></div>`;
+      return;
     }
   }else{
     // Normal passage: only the user-written choices. Never add a synthetic Continue button.
@@ -1416,6 +1428,18 @@ function choose(pid,i){
   // passage — skip any bridge scenes so ONE choice click lands on the next real part
   const tgt=findPidByLabel(c.target);
   if(!tgt){
+    const out=detectEndingOutcome((c.text||'')+' '+(c.target||''),'');
+    if(out==='victory'){
+      const vicIds=Object.values(cyoa.passages).filter(x=>x.type==='victory');
+      if(vicIds.length>0){showPassage(vicIds[0].id);return;}
+      const box=document.getElementById('player');
+      box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(c.text||'You win!')}</p><button class="btn btn-green" onclick="playStory()">↻ Play Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+      return;
+    }else if(out==='death'){
+      const box=document.getElementById('player');
+      box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend death"><h2>💀 You have died.</h2><p>${esc(c.text||'Your journey ends here.')}</p><button class="btn btn-red" onclick="playStory()">↻ Try Again</button> <button class="btn btn-sec" onclick="closePlayer()">Back</button></div>`;
+      return;
+    }
     const box=document.getElementById('player');
     box.innerHTML=`<button class="player-x" onclick="closePlayer()">✕</button><div class="pend"><h2 style="color:#991b1b;border:none">⚠️ Broken Path</h2><p style="text-align:center">This choice leads to "${esc(c.target)}" which doesn't exist yet.<br><em>Back to the builder to write it!</em></p><button class="btn" onclick="closePlayer()">✍️ Back</button></div>`;
     return;
@@ -1758,7 +1782,7 @@ function fixOwnedStats(){
     if(s._owned&&!s._community&&!s._imported){
       const played=playedTracker[s.id];
       // If user never actually opened it but stats were faked, reset to 0
-      if((!played||(!played.died&&!played.finished))&&s.plays>0&&s._seeded){
+      if((!played||(!played.died&&!played.finished&&!played.won))&&s.plays>0&&s._seeded){
         s.plays=0;s.firstTryWins=0;changed=true;
       }
     }
@@ -2363,9 +2387,10 @@ function readStoryObject(s,addToLib,idx){
       endPlay();return;
     }
     if(p.type==='victory'){
-      if(firstOpen && addToLib && !playedTracker[sid].died&&!playedTracker[sid].finished){
+      if(firstOpen && addToLib && !playedTracker[sid].died&&!playedTracker[sid].won){
         s.firstTryWins=(s.firstTryWins|0)+1;
-        saveLib();
+        playedTracker[sid].won=true;
+        saveLib();savePlayed();renderLib();
       }
       body.innerHTML=`<div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(p.text||'You win!')}</p><p style="text-align:center;font-size:.85em;color:#6b4c3b;margin-top:10px">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}${renderFeedbackBar(s.id,'end')}</div>`;
       endPlay();return;
@@ -2380,8 +2405,8 @@ function readStoryObject(s,addToLib,idx){
       const tid=p.contTarget?findTgt({target:p.contTarget,targetType:'passage'}):null;
       const tP=tid?passages[tid]:null;
       if(tP&&tP.type==='victory'){
-        if(firstOpen && addToLib && !playedTracker[sid].died&&!playedTracker[sid].finished){
-          s.firstTryWins=(s.firstTryWins|0)+1;saveLib();
+        if(firstOpen && addToLib && !playedTracker[sid].died&&!playedTracker[sid].won){
+          s.firstTryWins=(s.firstTryWins|0)+1;playedTracker[sid].won=true;saveLib();savePlayed();renderLib();
         }
         const winMsg=esc((p.text||tP.text||'You win!').trim());
         body.innerHTML=`<div class="pend victory"><h2>🏆 Victory!</h2><p>${winMsg}</p><p style="text-align:center;font-size:.85em;color:#6b4c3b;margin-top:10px">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}${renderFeedbackBar(s.id,'end')}</div>`;
@@ -2397,8 +2422,17 @@ function readStoryObject(s,addToLib,idx){
       if(tid){
         h+=`<button class="pchoice cont" onclick="_rPrev='${pid}';rp('${tid}')"><span class="l" style="background:#b8860b">➡</span><em>Continue →</em></button>`;
       }else{
-        h+='<p style="text-align:center;color:#991b1b">— End of path —</p>';
-        endPlay();
+        const out=detectEndingOutcome(p.text,'victory');
+        if(out==='death'){
+          if(firstOpen&&addToLib)playedTracker[sid].died=true;
+          body.innerHTML=`<div class="pend death"><h2>💀 You have died...</h2><p>${esc(p.text||'Your journey ends here.')}</p><button class="btn btn-red" onclick='rReset();rp("${startId}")'>↻ Try Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${renderFeedbackBar(s.id,'end')}</div>`;
+        }else{
+          if(firstOpen&&addToLib&&!playedTracker[sid].died&&!playedTracker[sid].won){
+            s.firstTryWins=(s.firstTryWins|0)+1;playedTracker[sid].won=true;saveLib();savePlayed();renderLib();
+          }
+          body.innerHTML=`<div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(p.text||'You made it through!')}</p><p style="text-align:center;font-size:.85em;color:#6b4c3b;margin-top:10px">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}${renderFeedbackBar(s.id,'end')}</div>`;
+        }
+        endPlay();return;
       }
   }else if(p.choices.length===0){
     // Blank choice scene: auto-advance to a sensible next scene instead of ending.
@@ -2414,8 +2448,17 @@ function readStoryObject(s,addToLib,idx){
     if(fwd){
       h+=`<button class="pchoice cont" onclick="_rPrev='${pid}';rp('${fwd}')"><span class="l" style="background:#b8860b">➡</span><em>Continue →</em></button>`;
     }else{
-      h+='<p style="text-align:center;color:#991b1b">— The end —</p>';
-      endPlay();
+      const out=detectEndingOutcome(p.text,'victory');
+      if(out==='death'){
+        if(firstOpen&&addToLib)playedTracker[sid].died=true;
+        body.innerHTML=`<div class="pend death"><h2>💀 You have died...</h2><p>${esc(p.text||'Your journey ends here.')}</p><button class="btn btn-red" onclick='rReset();rp("${startId}")'>↻ Try Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${renderFeedbackBar(s.id,'end')}</div>`;
+      }else{
+        if(firstOpen&&addToLib&&!playedTracker[sid].died&&!playedTracker[sid].won){
+          s.firstTryWins=(s.firstTryWins|0)+1;playedTracker[sid].won=true;saveLib();savePlayed();renderLib();
+        }
+        body.innerHTML=`<div class="pend victory"><h2>🏆 Victory!</h2><p>${esc(p.text||'You made it through!')}</p><p style="text-align:center;font-size:.85em;color:#6b4c3b;margin-top:10px">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}${renderFeedbackBar(s.id,'end')}</div>`;
+      }
+      endPlay();return;
     }
   }else{
       // Normal passage: render each choice as a button. NO extra "Continue" button —
@@ -2430,7 +2473,12 @@ function readStoryObject(s,addToLib,idx){
           // Skip bridge scenes: one choice click lands on the next real part
           const dest=tid?resolveChoiceDest(passages,lab=>{for(const x in passages){if(slug(passages[x].title)===slug(lab))return x;}return null;},tid,c.text):null;
           if(dest){goFn=`_rPrev='${pid}';rp('${dest}')`;}
-          else goFn="alert('That path is not written yet.')";
+          else{
+            const out=detectEndingOutcome((c.text||'')+' '+(c.target||''),'');
+            if(out==='victory')goFn=`_rPrev='${pid}';doPubEnd('victory','${startId}')`;
+            else if(out==='death')goFn=`_rPrev='${pid}';doPubEnd('death','${startId}')`;
+            else goFn="alert('That path is not written yet.')";
+          }
         }
         h+=`<button class="pchoice" onclick="${goFn}"><span class="l">${c.letter}</span>${esc(c.text||'Continue...')}</button>`;
       });
@@ -2444,8 +2492,8 @@ function readStoryObject(s,addToLib,idx){
       if(firstOpen&&addToLib)playedTracker[sid].died=true;
       body.innerHTML=`<div class="pend death"><h2>💀 You have died.</h2><p>Your journey ends here.</p><button class="btn btn-red" onclick='rReset();rp("${startId}")'>↻ Try Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${renderFeedbackBar(s.id,'end')}</div>`;
     }else{
-      if(firstOpen&&addToLib&&!playedTracker[sid].died&&!playedTracker[sid].finished){
-        s.firstTryWins=(s.firstTryWins|0)+1;saveLib();
+      if(firstOpen&&addToLib&&!playedTracker[sid].died&&!playedTracker[sid].won){
+        s.firstTryWins=(s.firstTryWins|0)+1;playedTracker[sid].won=true;saveLib();savePlayed();renderLib();
       }
       body.innerHTML=`<div class="pend victory"><h2>🏆 The End</h2><p style="text-align:center;font-size:.85em;color:#6b4c3b">${addToLib&&!playedTracker[sid].died?'🏅 <b>First try!</b> Your win has been recorded.':'Nice win!'}</p><button class="btn btn-green" onclick='rReset();rp("${startId}")'>↻ Play Again</button> <button class="btn btn-sec" onclick="closeRead()">← Back to Library</button>${addToLib?'':`<button class="btn btn-gold" onclick="closeRead();addCommunityToLib('${s.id}')" style="margin-left:6px">➕ Add to my library</button>`}${renderFeedbackBar(s.id,'end')}</div>`;
     }
@@ -2530,6 +2578,24 @@ function titleFromText(txt,i){
 }
 function pickR(arr,seed){let h=2166136261;const s=String(seed);for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return arr[(h>>>0)%arr.length];}
 
+const DEATH_OUTCOME_RE=/\b(die|dies|died|death|fatal|fatally|kill|kills|killed|killing|perish|perishes|perished|game over|doom|doomed|destroy|destroyed|executed|slain|slay|murdered|crushed|eaten|devoured|drown|drowned|drowns|starve|starved|poisoned|unconscious|bleed out|no escape|lose|loses|lost|failure|failed|fail|wiped out|succumb|succumbed|trapped|captured|imprisoned|dungeon forever|locked away)\b/i;
+const WIN_OUTCOME_RE=/\b(victory|victorious|win|wins|won|winning|survive|survived|survives|surviving|escape|escaped|escapes|escaping|triumph|triumphed|triumphant|conquer|conquered|conquers|conquering|beat|beaten|beats|beating|champion|success|succeeded|successful|successfully|safe|safety|safely|saved|rescued|celebrate|celebrated|hero|accomplished|freedom|liberated|solved|completed|mastered|rejoice|rejoiced|the end)\b/i;
+
+function detectEndingOutcome(text,defaultOutcome='victory'){
+  const t=String(text||'');
+  const hasWin=WIN_OUTCOME_RE.test(t);
+  const hasDeath=DEATH_OUTCOME_RE.test(t);
+  if(hasWin&&!hasDeath)return 'victory';
+  if(hasDeath&&!hasWin)return 'death';
+  if(hasWin&&hasDeath){
+    const winMatch=t.match(WIN_OUTCOME_RE);
+    const deathMatch=t.match(DEATH_OUTCOME_RE);
+    return (winMatch&&deathMatch&&winMatch.index>deathMatch.index)?'victory':'death';
+  }
+  return defaultOutcome;
+}
+
+
 function doSmartConvert(text){
   const blocks=parseStory(text);
   if(blocks.length===0){document.getElementById('convProg').style.display='none';toast('Couldn\'t find any scenes \u2014 try pasting again with paragraph breaks.');return;}
@@ -2607,12 +2673,12 @@ function doSmartConvert(text){
         const choices=[];
         block.choices.forEach((ctext,ci)=>{
           const resLines=(block.results&&block.results[ci]&&block.results[ci].length)?block.results[ci].join('\n\n'):'';
-          const combined=(ctext+' '+resLines).toLowerCase();
-          const isDeath=/\b(die|dies|died|death|kill|kills|killed|perish|perishes|fail|fails|failed|ends bad|no escape|wrong|incorrect|game over|lose|loses|lost)\b/.test(combined);
-          const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'ending';
+          const combined=(ctext+' '+resLines).trim();
+          const outcome=detectEndingOutcome(combined,'victory');
+          const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||(outcome==='death'?'the end':'victory');
           const tTitle=uniqTitle(tBase);
           const endId=uid();
-          if(isDeath){
+          if(outcome==='death'){
             passages[endId]={id:endId,title:tTitle,text:resLines||deathText,type:'death',choices:[]};
           }else{
             const winText=resLines||('You chose: '+ctext+'.\n\n— The End —');
@@ -2622,9 +2688,10 @@ function doSmartConvert(text){
         });
         p.choices=choices;
       }else{
-        // Unbranched narrative at end of story: concludes in victory
-        p.type='victory';
-        p.text=(p.text?p.text+'\n\n':'')+vicTextBase;
+        // Unbranched narrative at end of story: carefully inspect text outcome
+        const sceneOutcome=detectEndingOutcome(p.text,'victory');
+        p.type=sceneOutcome==='death'?'death':'victory';
+        p.text=(p.text?p.text+'\n\n':'')+(sceneOutcome==='death'?deathText:vicTextBase);
         delete p.contTarget;
         p.choices=[];
       }
@@ -2637,14 +2704,20 @@ function doSmartConvert(text){
         const choices=[];
         block.choices.forEach((ctext,ci)=>{
           const resLines=(block.results&&block.results[ci]&&block.results[ci].length)?block.results[ci].join('\n\n'):'';
-          const combined=(ctext+' '+resLines).toLowerCase();
-          // In middle scenes: only explicit death ends the path
-          const isDeath=/\b(die|dies|died|death|kill|kills|killed|perish|perishes|fatal|ends your journey|game over)\b/.test(combined);
-          if(isDeath){
+          const combined=(ctext+' '+resLines).trim();
+          // In middle scenes: check for explicit outcome
+          const midOutcome=detectEndingOutcome(combined,'advance');
+          if(midOutcome==='death'){
             const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'the end';
             const tTitle=uniqTitle(tBase);
             const endId=uid();
             passages[endId]={id:endId,title:tTitle,text:resLines||deathText,type:'death',choices:[]};
+            choices.push({letter:letters[ci],text:ctext,target:tTitle,targetType:'passage'});
+          }else if(midOutcome==='victory'){
+            const tBase=ctext.replace(/[^a-zA-Z0-9\s]/g,'').split(/\s+/).slice(0,3).join(' ').toLowerCase()||'victory';
+            const tTitle=uniqTitle(tBase);
+            const endId=uid();
+            passages[endId]={id:endId,title:tTitle,text:resLines||('You chose: '+ctext+'.\n\n— The End —'),type:'victory',choices:[]};
             choices.push({letter:letters[ci],text:ctext,target:tTitle,targetType:'passage'});
           }else if(resLines){
             // 1-CLICK ADVANCE: choice carries its result directly to the next scene
