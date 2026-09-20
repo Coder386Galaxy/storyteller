@@ -1488,7 +1488,7 @@ function exportHTML(){
 //   ST-1: all ages   ST-2: ~7+   ST-3: ~12+   ST-4: ~16+   ST-5: 18+
 const LS_DOB='sf_dob';       // persistent: 'YYYY-MM-DD'
 const LS_AGE='sf_age_ok';    // legacy: keep for session 18+ ID gate
-const MIN_AGE={1:0,2:7,3:12,4:16,5:18};
+const MIN_AGE={1:0,2:7,3:10,4:14,5:18};
 let userAge=-1;
 let ageVerifiedThisSession=false; // 18+ ID check for ST-5 specifically
 
@@ -1822,11 +1822,11 @@ function updateLibCount(){const el=document.getElementById('libCount');if(el)el.
 
 // Age rating AI analyzer (heuristic-based, simulates content-analysis AI)
 const RATINGS={
-  st1:{code:'ST-1',name:'General',color:'st1',short:'All ages',desc:'Suitable for all ages. No scary moments, no violence, simple friendly adventures.'},
-  st2:{code:'ST-2',name:'Mild',color:'st2',short:'Ages 7+',desc:'Mild adventure tension, some cartoon peril, no real violence or dark themes. Safe for most children.'},
-  st3:{code:'ST-3',name:'Moderate',color:'st3',short:'Ages 12+',desc:'Moderate tension, fantasy violence, scary moments, mild language. Similar to a PG film.'},
-  st4:{code:'ST-4',name:'Intense',color:'st4',short:'Ages 16+',desc:'Intense scenes, graphic descriptions of danger/death, strong language, dark themes, horror elements.'},
-  st5:{code:'ST-5',name:'Mature',color:'st5',short:'Ages 18+',desc:'Graphic violence, horror, mature themes, disturbing imagery, strong language. Adult audiences only.'}
+  st1:{code:'ST-1',name:'General',color:'st1',short:'All ages',desc:'Suitable for all ages. Friendly fun, puzzles, exploration, and light adventures.'},
+  st2:{code:'ST-2',name:'Mild',color:'st2',short:'Ages 7+',desc:'Mild adventure tension, fantasy monsters, playful perils, and standard adventure stakes.'},
+  st3:{code:'ST-3',name:'Moderate',color:'st3',short:'Ages 10+',desc:'Classic fantasy action, sword battles, dungeons, traps, and spooky mysteries. Ideal for middle grade readers & 10+.'},
+  st4:{code:'ST-4',name:'Intense',color:'st4',short:'Ages 14+',desc:'Heavy psychological horror, gruesome graphic danger, and dark mature thriller themes.'},
+  st5:{code:'ST-5',name:'Mature',color:'st5',short:'Ages 18+',desc:'Explicit adult content, extreme gore/horror, and restricted graphic material.'}
 };
 
 function analyzeRating(story){
@@ -1835,55 +1835,51 @@ function analyzeRating(story){
   for(const id in story.passages){
     const p=story.passages[id];
     all+=' '+p.title+' '+p.text;
-    p.choices.forEach(c=>{all+=' '+c.text;});
+    if(p.choices) p.choices.forEach(c=>{all+=' '+(c.text||'');});
   }
   all=all.toLowerCase();
   let score=1;
   const reasons=[];
 
-  // Death passages exist — baseline
   const deathCount=Object.values(story.passages).filter(p=>p.type==='death').length;
-  const vicCount=Object.values(story.passages).filter(p=>p.type==='victory').length;
 
-  // Keyword scans
-  const mild=['afraid','scary','spooky','dark','shadow','monster','ghost','creepy','danger','lost','hide','scream','chase','run'];
-  const moderate=['fight','sword','blood','wound','injury','kill','killed','attack','arrow','blade','enemy','war','battle','knife','gun','dead body','corpse','curse','curse'];
-  const intense=['gore','gory','slaughter','dismember','torn apart','screams in agony','drowns','burned alive','torture','mutilat','horror','demonic','nightmare','choke','gasping','viscera','intestines','decapitat','stabbed','shot','bleeding heavily'];
-  const mature=['graphic','brutal','grotesque','sadistic','sexual','assault','suicide','self-harm','rape','nazi','tortur','skull crushed','eviscerat','mangled','cannibal','necrophil'];
+  // Keyword categories with chill, realistic thresholds for young & teen creators
+  const mild=['afraid','scary','spooky','dark','shadow','monster','ghost','creepy','danger','lost','hide','scream','chase','run','trap','pit','dragon','dungeon','beast','zombie','skeleton'];
+  const moderate=['fight','sword','blood','wound','injury','kill','killed','attack','arrow','blade','enemy','war','battle','knife','curse','poison','defeat','slay','slain','weapon'];
+  const intense=['gore','gory','slaughter','dismember','torn apart','screams in agony','burned alive','torture','horror','demonic','viscera','intestines','decapitat','pools of blood','mutilated'];
+  const mature=['graphic brutal','grotesque sadistic','sexual','assault','suicide','self-harm','rape','nazi','skull crushed','eviscerat','cannibal','necrophil'];
 
   const mildHits=mild.filter(w=>new RegExp('\\b'+w.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&')+'\\b','i').test(all));
-  const modHits=moderate.filter(w=>all.includes(w));
+  const modHits=moderate.filter(w=>new RegExp('\\b'+w.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&')+'\\b','i').test(all));
   const intHits=intense.filter(w=>all.includes(w));
   const matHits=mature.filter(w=>all.includes(w));
 
-  if(deathCount===0&&mildHits.length===0&&modHits.length===0){
-    score=1;reasons.push('No danger, violence, or scary content detected.');
-  }else{
-    if(mildHits.length>0)score=Math.max(score,2);
-    if(modHits.length>0||deathCount>0)score=Math.max(score,3);
-    if(intHits.length>0)score=Math.max(score,4);
-    if(matHits.length>0)score=Math.max(score,5);
+  if(deathCount===0 && mildHits.length===0 && modHits.length===0 && intHits.length===0 && matHits.length===0){
+    score=1;
+    reasons.push('Lighthearted, gentle exploration — safe for everyone.');
+  } else {
+    // Normal adventure elements: monsters, mild suspense, or a game-over -> ST-2 (Ages 7+)
+    if(mildHits.length>0 || deathCount===1 || modHits.length===1) score=Math.max(score,2);
+    // Typical sword fights, dragons, dungeon battles, multiple death paths -> ST-3 (Ages 10+, perfect for 11-year-olds)
+    if(modHits.length>=2 || deathCount>=3) score=Math.max(score,3);
+    // ST-4 (Ages 14+) requires genuine graphic gore/slaughter or intense psychological horror
+    if(intHits.length>=2 || (intHits.length===1 && deathCount>=5)) score=Math.max(score,4);
+    // ST-5 (18+) strictly requires explicit adult/extreme horror content
+    if(matHits.length>0 || intHits.length>=4) score=Math.max(score,5);
 
-    // Adjust by density
-    const words=all.split(/\s+/).filter(Boolean).length;
-    const dangerWords=mildHits.length+modHits.length*2+intHits.length*3+matHits.length*5;
-    const density=dangerWords/Math.max(words,1);
+    if(matHits.length) reasons.push('Detected mature/explicit adult themes.');
+    else if(intHits.length && score>=4) reasons.push('Heavy graphic danger: '+intHits.slice(0,3).join(', ')+'.');
+    else if(modHits.length && score===3) reasons.push('Fantasy action & adventure peril: '+modHits.slice(0,3).join(', ')+'.');
+    else if(mildHits.length) reasons.push('Mild fantasy adventure elements: '+mildHits.slice(0,3).join(', ')+'.');
 
-    if(score===3&&density>0.04)score=4;
-    if(score===2&&deathCount>=3)score=3;
-    if(score===4&&intHits.length>=3)score=5;
-
-    // Build reasons
-    if(matHits.length)reasons.push('Detected mature/disturbing keywords: '+matHits.slice(0,4).join(', '));
-    if(intHits.length&&score>=4)reasons.push('Intense or graphic content keywords: '+intHits.slice(0,4).join(', '));
-    else if(modHits.length)reasons.push('Violence/danger keywords: '+modHits.slice(0,4).join(', '));
-    else if(mildHits.length)reasons.push('Mild tense/spooky elements: '+mildHits.slice(0,4).join(', '));
-    if(deathCount===1)reasons.push('1 death ending.');
-    else if(deathCount>1)reasons.push(deathCount+' death endings — choices carry life-or-death stakes.');
+    if(deathCount===1) reasons.push('1 alternate game-over path.');
+    else if(deathCount>1) reasons.push(deathCount+' alternate endings.');
   }
-  if(reasons.length===0)reasons.push('Light, friendly content throughout.');
-  const schoolFriendly = score<=2;
-  return {score,r:RATINGS['st'+score],reasons,schoolFriendly};
+
+  if(reasons.length===0) reasons.push('Friendly adventure content throughout.');
+  // School-friendly includes ST-1, ST-2, and ST-3 fantasy stories with no gore
+  const schoolFriendly = score<=2 || (score===3 && intHits.length===0 && matHits.length===0);
+  return {score, r:RATINGS['st'+score], reasons, schoolFriendly};
 }
 
 // Publish wizard state
