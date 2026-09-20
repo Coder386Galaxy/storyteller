@@ -234,6 +234,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 /* FREE WRITE */
 #fw{width:100%;min-height:500px;padding:18px;border:1px solid #d4c4a8;border-radius:8px;background:#fffef9;font-family:Georgia,serif;font-size:1.05em;line-height:1.7;resize:vertical}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -4189,10 +4190,28 @@ async function sendRealVerificationEmail(toEmail, username, code){
   const mailMessage = `Hello @${username},\n\nYour 6-digit verification code for Storyteller CYOP is:\n\n[ ${code} ]\n\nEnter this code to sign in and access your saved adventures.\n\nHappy storytelling!`;
 
   const customKey = localStorage.getItem('sf_email_service_key') || '';
-  const serviceType = localStorage.getItem('sf_email_service_type') || 'web3forms';
+  const serviceType = localStorage.getItem('sf_email_service_type') || 'emailjs';
+  const ejsService = localStorage.getItem('sf_emailjs_service_id') || '';
+  const ejsTemplate = localStorage.getItem('sf_emailjs_template_id') || '';
 
   try {
-    // 1. Resend API support
+    // 1. EmailJS support (Client-side directly sends real emails to real inboxes)
+    if(serviceType === 'emailjs' && customKey && ejsService && ejsTemplate && window.emailjs){
+      window.emailjs.init(customKey);
+      await window.emailjs.send(ejsService, ejsTemplate, {
+        to_email: toEmail,
+        email: toEmail,
+        username: username,
+        code: code,
+        message: mailMessage
+      });
+      _emailDeliveryStatus = 'sent';
+      console.log('Real verification email dispatched via EmailJS to', toEmail);
+      updateEmailStatusBanner('sent');
+      return true;
+    }
+
+    // 2. Resend API support
     if(serviceType === 'resend' && customKey){
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -4214,27 +4233,28 @@ async function sendRealVerificationEmail(toEmail, username, code){
       }
     }
 
-    // 2. Web3Forms support (default or custom key)
-    const accessKey = customKey || '0cb046d3-24ce-4279-9fb4-5164bc7c2b64';
-    const resp = await fetch('https://api.web3forms.com/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({
-        access_key: accessKey,
-        subject: mailSubject,
-        from_name: 'Storyteller Verification',
-        to_email: toEmail,
-        replyto: toEmail,
-        message: mailMessage + '\n\nSent to: ' + toEmail
-      })
-    });
-    if(resp.ok){
-      _emailDeliveryStatus = 'sent';
-      updateEmailStatusBanner('sent');
-      return true;
+    // 3. Web3Forms support
+    if(serviceType === 'web3forms' && customKey){
+      const resp = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          access_key: customKey,
+          subject: mailSubject,
+          from_name: 'Storyteller Verification',
+          to_email: toEmail,
+          replyto: toEmail,
+          message: mailMessage + '\n\nSent to: ' + toEmail
+        })
+      });
+      if(resp.ok){
+        _emailDeliveryStatus = 'sent';
+        updateEmailStatusBanner('sent');
+        return true;
+      }
     }
   } catch(err) {
-    console.warn('Live mail network dispatch encountered error, providing instant fallback:', err);
+    console.warn('Real mail dispatch encountered error, activating preview backup:', err);
   }
   _emailDeliveryStatus = 'fallback';
   updateEmailStatusBanner('fallback');
@@ -4388,26 +4408,50 @@ function handleVerifyOTP(e){
 
 function openEmailConfigModal(){
   const curKey = localStorage.getItem('sf_email_service_key') || '';
-  const curService = localStorage.getItem('sf_email_service_type') || 'smtp';
-  showModal('✉️ Connect Real Email Dispatch', `
+  const curService = localStorage.getItem('sf_email_service_type') || 'emailjs';
+  const curEmailJSService = localStorage.getItem('sf_emailjs_service_id') || '';
+  const curEmailJSTemplate = localStorage.getItem('sf_emailjs_template_id') || '';
+
+  showModal('✉️ Connect Real Inbox Email Dispatch', `
     <div style="padding:4px 0">
-      <div style="font-size:2em;text-align:center;margin-bottom:6px">📬</div>
-      <h3 style="color:#8b2500;text-align:center;margin-bottom:6px">Real Email Dispatcher Setup</h3>
-      <p style="font-size:.88em;color:#6b4c3b;line-height:1.5;margin-bottom:14px">
-        By default, client-side browsers cannot connect to port 25/587 SMTP directly without an API token (due to browser CORS/egress security).
-        You can plug in your free <b>Resend</b>, <b>SendGrid</b>, or <b>Web3Forms</b> API key below so emails land directly in user inboxes!
+      <div style="font-size:2.2em;text-align:center;margin-bottom:6px">📬</div>
+      <h3 style="color:#8b2500;text-align:center;margin-bottom:6px">How to send codes to real inboxes</h3>
+      <p style="font-size:.86em;color:#6b4c3b;line-height:1.45;margin-bottom:12px">
+        Because frontend web apps run inside users' browsers, browsers cannot directly send raw emails without an email API key (to prevent spam). Here are the two 100% free ways to have Storyteller send verification codes straight to your users' inboxes:
       </p>
 
-      <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">Email Dispatch Service</label>
-      <select id="cfgEmailService" style="width:100%;padding:9px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:12px">
-        <option value="web3forms" ${curService==='web3forms'?'selected':''}>Web3Forms Free API (Instant Email)</option>
-        <option value="resend" ${curService==='resend'?'selected':''}>Resend API (resend.com)</option>
-        <option value="sendgrid" ${curService==='sendgrid'?'selected':''}>SendGrid API (api.sendgrid.com)</option>
+      <div style="background:#fff8e7;border:1px solid #d4c4a8;border-radius:8px;padding:12px;margin-bottom:14px;font-size:.85em;line-height:1.5">
+        <b style="color:#8b2500">Method 1 (Fastest &amp; Free — EmailJS):</b>
+        <ol style="margin:6px 0 6px 18px;padding:0">
+          <li>Create a free account at <b><a href="https://www.emailjs.com" target="_blank" style="color:#8b2500;text-decoration:underline">emailjs.com</a></b> (takes 60 seconds, no credit card).</li>
+          <li>Add an Email Service (connect your Gmail, Outlook, or Yahoo).</li>
+          <li>Create an Email Template with subject <code>Your Verification Code</code> and content <code>Your code is: {{code}}</code>.</li>
+          <li>Paste your <b>Public Key</b>, <b>Service ID</b>, and <b>Template ID</b> below.</li>
+        </ol>
+      </div>
+
+      <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">Provider</label>
+      <select id="cfgEmailService" style="width:100%;padding:9px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:12px" onchange="toggleEmailServiceFields(this.value)">
+        <option value="emailjs" ${curService==='emailjs'?'selected':''}>EmailJS (Free 200 emails/month to any Gmail/inbox)</option>
+        <option value="resend" ${curService==='resend'?'selected':''}>Resend API (resend.com API Key)</option>
+        <option value="web3forms" ${curService==='web3forms'?'selected':''}>Web3Forms Access Key</option>
       </select>
 
-      <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">Your Service API Key / Access Token</label>
-      <input type="text" id="cfgEmailKey" value="${esc(curKey)}" placeholder="e.g. re_123456... or Web3Forms access key" style="width:100%;padding:9px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:10px">
-      <div style="font-size:.78em;color:#6b4c3b;margin-bottom:16px">Your access key is saved only in your local browser and used whenever a verification code is dispatched.</div>
+      <div id="emailjsFields" style="display:${curService==='emailjs'?'block':'none'}">
+        <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">EmailJS Public Key</label>
+        <input type="text" id="cfgEmailKey" value="${esc(curKey)}" placeholder="e.g. user_abcdef123456" style="width:100%;padding:8px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:10px">
+
+        <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">EmailJS Service ID</label>
+        <input type="text" id="cfgEmailJSService" value="${esc(curEmailJSService)}" placeholder="e.g. service_xxxxxxx" style="width:100%;padding:8px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:10px">
+
+        <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">EmailJS Template ID</label>
+        <input type="text" id="cfgEmailJSTemplate" value="${esc(curEmailJSTemplate)}" placeholder="e.g. template_xxxxxxx" style="width:100%;padding:8px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:12px">
+      </div>
+
+      <div id="apiFields" style="display:${curService!=='emailjs'?'block':'none'}">
+        <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">API Key / Access Token</label>
+        <input type="text" id="cfgApiGeneralKey" value="${esc(curKey)}" placeholder="Enter API Key" style="width:100%;padding:8px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:12px">
+      </div>
 
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
@@ -4417,15 +4461,31 @@ function openEmailConfigModal(){
   `);
 }
 
+function toggleEmailServiceFields(svc){
+  const ejs = document.getElementById('emailjsFields');
+  const api = document.getElementById('apiFields');
+  if(ejs) ejs.style.display = (svc === 'emailjs') ? 'block' : 'none';
+  if(api) api.style.display = (svc !== 'emailjs') ? 'block' : 'none';
+}
+
 function saveEmailConfig(){
-  const k = document.getElementById('cfgEmailKey').value.trim();
   const s = document.getElementById('cfgEmailService').value;
+  let key = '';
+  if(s === 'emailjs'){
+    key = (document.getElementById('cfgEmailKey') ? document.getElementById('cfgEmailKey').value.trim() : '');
+    const svcId = (document.getElementById('cfgEmailJSService') ? document.getElementById('cfgEmailJSService').value.trim() : '');
+    const tplId = (document.getElementById('cfgEmailJSTemplate') ? document.getElementById('cfgEmailJSTemplate').value.trim() : '');
+    localStorage.setItem('sf_emailjs_service_id', svcId);
+    localStorage.setItem('sf_emailjs_template_id', tplId);
+  } else {
+    key = (document.getElementById('cfgApiGeneralKey') ? document.getElementById('cfgApiGeneralKey').value.trim() : '');
+  }
   try{
-    localStorage.setItem('sf_email_service_key', k);
+    localStorage.setItem('sf_email_service_key', key);
     localStorage.setItem('sf_email_service_type', s);
   }catch(e){}
   closeModal();
-  toast('Email dispatcher configured! ✅');
+  toast('Email service configured! ✅ Codes will now be sent.');
 }
 function openAccountDetails(){
   if(!currentUser){
