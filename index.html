@@ -1793,9 +1793,21 @@ function fixOwnedStats(){
   });
   if(changed)saveLib();
 }
-function saveLib(){try{localStorage.setItem(LS_LIB,JSON.stringify(library));}catch(e){}}
+function saveLib(){
+  try{localStorage.setItem(LS_LIB,JSON.stringify(library));}catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function'){
+    if(window._backupLibTimer) clearTimeout(window._backupLibTimer);
+    window._backupLibTimer = setTimeout(()=>{ backupAccountMemory(currentUser.email); }, 1200);
+  }
+}
 function loadPlayed(){try{const s=localStorage.getItem(LS_PLAYED);if(s)playedTracker=JSON.parse(s);}catch(e){playedTracker={};}}
-function savePlayed(){try{localStorage.setItem(LS_PLAYED,JSON.stringify(playedTracker));}catch(e){}}
+function savePlayed(){
+  try{localStorage.setItem(LS_PLAYED,JSON.stringify(playedTracker));}catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function'){
+    if(window._backupPlayedTimer) clearTimeout(window._backupPlayedTimer);
+    window._backupPlayedTimer = setTimeout(()=>{ backupAccountMemory(currentUser.email); }, 1200);
+  }
+}
 
 // Deterministic pseudo-random for seeding initial play counts (based on story id + title hash)
 function seedFromString(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return (h>>>0)/4294967295;}
@@ -3817,12 +3829,44 @@ let _pendingEmail = null;
 let _pendingUsername = null;
 let _isNewAccount = false;
 
+// Helper to keep login cookie active for 10 years unless explicitly logged out
+function setAuthCookie(name, val, days){
+  try{
+    const exp = new Date(Date.now() + days*864e5).toUTCString();
+    document.cookie = name + '=' + encodeURIComponent(val) + '; expires=' + exp + '; path=/; SameSite=Lax';
+  }catch(e){}
+}
+function getAuthCookie(name){
+  try{
+    const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : null;
+  }catch(e){ return null; }
+}
+function clearAuthCookie(name){
+  try{ document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'; }catch(e){}
+}
+
 function loadAuthUser(){
   try{
-    const u = localStorage.getItem(LS_AUTH_USER);
-    if(u){
-      currentUser = JSON.parse(u);
-      // Auto-restore saved account memory/state
+    let uStr = localStorage.getItem(LS_AUTH_USER);
+    // If localStorage was cleared, fallback to persistent cookie
+    if(!uStr){
+      const cookieEmail = getAuthCookie('sf_user_email');
+      if(cookieEmail){
+        const reg = getAccountRegistry();
+        if(reg[cookieEmail.toLowerCase()]){
+          uStr = JSON.stringify(reg[cookieEmail.toLowerCase()]);
+          localStorage.setItem(LS_AUTH_USER, uStr);
+        }
+      }
+    }
+    if(uStr){
+      currentUser = JSON.parse(uStr);
+      // Keep persistent cookie active
+      if(currentUser && currentUser.email){
+        setAuthCookie('sf_user_email', currentUser.email, 3650);
+      }
+      // Auto-restore full account memory (stories, library, settings)
       restoreAccountMemory(currentUser);
     }
   }catch(e){ currentUser = null; }
@@ -3831,8 +3875,13 @@ function loadAuthUser(){
 function saveAuthUser(u){
   currentUser = u;
   try{
-    if(u) localStorage.setItem(LS_AUTH_USER, JSON.stringify(u));
-    else localStorage.removeItem(LS_AUTH_USER);
+    if(u){
+      localStorage.setItem(LS_AUTH_USER, JSON.stringify(u));
+      setAuthCookie('sf_user_email', u.email, 3650);
+    } else {
+      localStorage.removeItem(LS_AUTH_USER);
+      clearAuthCookie('sf_user_email');
+    }
   }catch(e){}
   renderAccountBadge();
 }
@@ -3887,34 +3936,58 @@ function restoreAccountMemory(user){
     const acct = reg[user.email.toLowerCase()];
     const mem = (acct && acct.memory) || user.memory;
     if(!mem) return;
+
+    // 1. Restore story draft
     if(mem.cyoa && mem.cyoa.passages && Object.keys(mem.cyoa.passages).length > 0){
       cyoa = mem.cyoa;
-      save();
+      if(mem.curPid && cyoa.passages[mem.curPid]) curPid = mem.curPid;
+      try{ localStorage.setItem(LS_CYOA, JSON.stringify(cyoa)); }catch(e){}
     }
     if(mem.title){
       const el = document.getElementById('storyTitle');
       if(el) el.value = mem.title;
       try{ localStorage.setItem('sf_title', mem.title); }catch(e){}
     }
+
+    // 2. Restore published and imported library
     if(Array.isArray(mem.library) && mem.library.length > 0){
-      // Merge library seamlessly
-      const existingIds = new Set(library.map(x=>x.id));
+      const existingMap = new Map();
+      library.forEach(x => existingMap.set(x.id, x));
       mem.library.forEach(item => {
-        if(!existingIds.has(item.id)) library.push(item);
+        if(!existingMap.has(item.id)){
+          library.push(item);
+        } else {
+          // Keep highest play count and win stats
+          const cur = existingMap.get(item.id);
+          cur.plays = Math.max(cur.plays||0, item.plays||0);
+          cur.firstTryWins = Math.max(cur.firstTryWins||0, item.firstTryWins||0);
+        }
       });
-      saveLib();
+      try{ localStorage.setItem(LS_LIB, JSON.stringify(library)); }catch(e){}
     }
+
+    // 3. Restore played tracker & beats
     if(mem.playedTracker){
       playedTracker = Object.assign({}, playedTracker, mem.playedTracker);
-      savePlayed();
+      try{ localStorage.setItem(LS_PLAYED, JSON.stringify(playedTracker)); }catch(e){}
     }
+
+    // 4. Restore DOB & age
     if(mem.dob){
       try{ localStorage.setItem('sf_dob', mem.dob); }catch(e){}
       userAge = calcAge(mem.dob);
     }
+
+    // 5. Restore OpenAI API configuration
     if(mem.openai){
-      try{ localStorage.setItem('sf_openai', mem.openai); }catch(e){}
+      try{
+        if(!localStorage.getItem('sf_openai') || localStorage.getItem('sf_openai') === '{}'){
+          localStorage.setItem('sf_openai', mem.openai);
+        }
+      }catch(e){}
     }
+
+    // 6. Restore Pro membership
     if(mem.pro === '1'){
       try{ localStorage.setItem('sf_pro', '1'); }catch(e){}
       renderProBadge();
@@ -4274,11 +4347,14 @@ function manualRestoreAccountMemory(){
 }
 
 function logoutUser(){
-  if(!confirm('Log out of Storyteller on this browser?')) return;
+  if(!confirm('Log out of Storyteller on this browser? Your account memory is safely preserved.')) return;
+  if(currentUser && typeof backupAccountMemory === 'function'){
+    backupAccountMemory(currentUser.email);
+  }
   saveAuthUser(null);
   closeModal();
   openAuthModal('email');
-  toast('Logged out');
+  toast('Logged out — your account memory is safely saved! 🔒');
 }
 
 function deleteAccountPermanent(){
