@@ -250,7 +250,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
       <button class="btn" onclick="openChat()" style="background:#000000;color:#ffffff;border:1px solid #333333;padding:7px 12px;font-size:.85em;display:inline-flex;align-items:center;gap:6px" title="Chat with ChatGPT Story Assistant"><svg class="chatgpt-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="vertical-align:middle;display:inline-block;margin-right:4px"><path d="M22.28 9.54a5.55 5.55 0 0 0-.48-4.48 5.66 5.66 0 0 0-5.74-2.82A5.6 5.6 0 0 0 11.7.35a5.67 5.67 0 0 0-5.4 3.92 5.58 5.58 0 0 0-3.8 2.76 5.65 5.65 0 0 0 .68 6.33 5.56 5.56 0 0 0 .48 4.48 5.66 5.66 0 0 0 5.74 2.82 5.58 5.58 0 0 0 4.36 1.89 5.67 5.67 0 0 0 5.4-3.92 5.58 5.58 0 0 0 3.8-2.76 5.64 5.64 0 0 0-.68-6.33ZM12 21.68a3.67 3.67 0 0 1-2.43-.92l.14-.08 4.02-2.32a1 1 0 0 0 .5-.86v-5.68l1.7.98a.1.1 0 0 1 .05.08v4.67a3.7 3.7 0 0 1-3.98 3.83Zm-8-4.63a3.67 3.67 0 0 1-.45-2.56l.14.08 4.02 2.32a1 1 0 0 0 1 0l4.92-2.84v1.96a.1.1 0 0 1-.04.09l-4.05 2.34a3.7 3.7 0 0 1-5.54-1.39Zm-1.54-8.8a3.67 3.67 0 0 1 2-1.64V11a1 1 0 0 0 .5.87l4.92 2.84-1.7.98a.1.1 0 0 1-.1 0l-4.05-2.34a3.7 3.7 0 0 1-1.57-4.75ZM17.42 12 12.5 9.16l1.7-.98a.1.1 0 0 1 .1 0l4.05 2.34a3.7 3.7 0 0 1 1.57 4.75 3.67 3.67 0 0 1-2 1.64V12.87a1 1 0 0 0-.5-.87Zm3.12-2.42-.14-.08-4.02-2.32a1 1 0 0 0-1 0L10.46 10V8.04a.1.1 0 0 1 .04-.09l4.05-2.34a3.7 3.7 0 0 1 5.54 1.39 3.67 3.67 0 0 1 .45 2.58Zm-7.7-1.47-1.7-.98a.1.1 0 0 1-.05-.08V2.38a3.7 3.7 0 0 1 6.41-1.25l-.14.08-4.02 2.32a1 1 0 0 0-.5.86v5.72Z"/></svg> ChatGPT Editor</button>
       <button class="auth-badge" id="accountBadge" onclick="openAccountDetails()" title="Account Profile">👤 <span id="accountEmailText">Account</span></button>
       <button class="btn btn-sec" onclick="openSettings()" style="padding:7px 10px;font-size:.85em" title="Settings">⚙</button>
-      <button class="btn" id="proBadge" onclick="showProPage()" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#2c1810;padding:7px 12px;font-size:.85em;display:inline-flex;align-items:center;gap:4px" title="Storyteller Pro">✨ Pro</button>
+      <button class="btn" id="proBadge" onclick="showProPage()" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#2c1810;padding:7px 12px;font-size:.85em;display:inline-flex;align-items:center;gap:4px" title="Yearly Pass">⭐ Yearly Pass</button>
     </div>
 </header>
 
@@ -2999,13 +2999,13 @@ function savePro(v){try{localStorage.setItem(LS_PRO,v?'1':'0');}catch(e){}isPro=
 function renderProBadge(){
   const b=document.getElementById('proBadge');if(!b)return;
   if(isPro){
-    b.innerHTML='👑 Pro';
+    b.innerHTML='⭐ Yearly Pass';
     b.style.background='linear-gradient(135deg,#fbbf24,#d97706)';
-    b.title='Storyteller Pro — media features unlocked';
+    b.title='Yearly Pass Active — Ad-free, all themes, VIP features unlocked';
   }else{
-    b.innerHTML='✨ Upgrade to Pro';
+    b.innerHTML='⭐ Yearly Pass';
     b.style.background='linear-gradient(135deg,#fbbf24,#f59e0b)';
-    b.title='Upgrade to Storyteller Pro to add photos, videos & sound';
+    b.title='Get the Yearly Pass — Ad-free, all themes & premium features';
   }
 }
 function requirePro(feature,onUpgrade){
@@ -3104,8 +3104,8 @@ function showExportCode(){
      <div style="text-align:right;margin-top:12px"><button class="btn btn-gold" onclick="closeModal()">Done</button></div>`);
 }
 
-const STRIPE_MONTHLY='https://buy.stripe.com/test_28E14n71scO1ech7w397G02';
-const STRIPE_YEARLY='https://buy.stripe.com/test_dRm9ATdpQ7tHecheYv97G00';
+const STRIPE_YEARLY='https://buy.stripe.com/test_28EeVd0D45lz1pv9Eb97G03';
+
 
 function showProPage(feature,onUpgrade){
   const ctx=feature==='media'?'photos, videos, and sound effects':(feature==='ads'?'Ad-free reading':'extra features');
@@ -3133,7 +3133,7 @@ function showProPage(feature,onUpgrade){
   <div style="text-align:center">
     <div style="font-size:2.4em;margin-bottom:4px">✨</div>
     <h2 style="color:#8b2500;margin-bottom:4px;font-size:1.5em">Storyteller Pass &amp; Membership</h2>
-    <p style="font-size:.9em;color:#6b4c3b;margin-bottom:10px">${feature?`This feature (${ctx}) requires <b>Storyteller Yearly Pass / Pro</b>.`:'Compare Free users vs. Yearly Pass members below:'}</p>
+    <p style="font-size:.9em;color:#6b4c3b;margin-bottom:10px">${feature?`This feature (${ctx}) requires the <b>Yearly Pass</b>.`:'Compare Free users vs. Yearly Pass members below:'}</p>
   </div>
 
   <table class="compare-tbl">
@@ -3198,37 +3198,27 @@ function showProPage(feature,onUpgrade){
     </tbody>
   </table>
 
-  <div class="pro-plans">
-    <div class="pro-plan">
-      <div class="pro-tier">Monthly Pass</div>
-      <div class="pro-price">$4.99</div>
-      <div class="pro-period">per month</div>
-      <button class="pro-cta" onclick="startCheckout('monthly')">💳 Monthly Pass</button>
-    </div>
-    <div class="pro-plan featured">
-      <div class="pro-tier">Yearly Pass</div>
-      <div class="pro-price">$39</div>
-      <div class="pro-period">$3.25/mo · billed yearly · save 35%</div>
-      <button class="pro-cta" onclick="startCheckout('yearly')">⭐ Get Yearly Pass</button>
+  <div style="max-width:380px;margin:16px auto 14px">
+    <div class="pro-plan featured" style="padding:20px 16px">
+      <div class="pro-tier">Annual Membership</div>
+      <div class="pro-price" style="font-size:2.4em">$39 <span style="font-size:.45em;font-weight:600;color:#6b4c3b">/ year</span></div>
+      <div class="pro-period">Ad-free · All themes · Larger AI allowance · VIP badge</div>
+      <button class="pro-cta" style="margin-top:14px;padding:12px;font-size:1.05em;background:linear-gradient(135deg,#b8860b,#d97706);color:#2c1810" onclick="startCheckout('yearly')">⭐ Get Yearly Pass →</button>
     </div>
   </div>
   <div class="pro-test"><b>Test checkout available:</b> Stripe test environment. Use test card <code style="background:#fff;padding:1px 6px;border-radius:4px">4242 4242 4242 4242</code>. Yearly Pass unlocks automatically upon checkout!</div>
-  ${wasPro?'<p style="text-align:center;margin-top:10px"><button class="btn btn-sec" onclick="downgradePro()" style="font-size:.8em;padding:4px 10px">Cancel subscription</button></p>':''}
+  ${wasPro?'<p style="text-align:center;margin-top:10px"><button class="btn btn-sec" onclick="downgradePro()" style="font-size:.8em;padding:4px 10px">Cancel Yearly Pass</button></p>':''}
   <div style="text-align:right;margin-top:10px"><button class="btn btn-sec" onclick="closeModal()">Close</button></div>`;
 
-  showModal(wasPro?'✨ Manage Yearly Pass':'✨ Upgrade to Yearly Pass', html);
+  showModal(wasPro?'⭐ Manage Yearly Pass':'⭐ Get Yearly Pass', html);
 }
 function startCheckout(plan){
-  if(isIOSApp()){toast('\ud83d\udcf1 Subscriptions aren\u2019t available in the iOS app yet (Apple requires in-app purchase). Use the web version to subscribe.');return;}
-  const url=plan==='yearly'?STRIPE_YEARLY:STRIPE_MONTHLY;
+  if(isIOSApp()){toast('📱 Subscriptions aren\u2019t available in the iOS app yet (Apple requires in-app purchase). Use the web version to subscribe.');return;}
+  const url=STRIPE_YEARLY;
   const w=window.open(url,'_blank','noopener');
   if(!w){location.href=url;return;}
-  toast('Opening Stripe checkout — Pro unlocks automatically once payment completes.');
+  toast('Opening Stripe checkout — Yearly Pass unlocks automatically once payment completes.');
 }
-// Called at startup: Stripe Payment Links redirect back to the app after a
-// successful payment (set "After payment" in the Stripe dashboard to this
-// app's URL). Success is signaled by payment=success / pro=1 / session_id
-// in the URL. Only then is Pro unlocked — there is no manual unlock button.
 function checkPaymentReturn(){
   let ok=false;
   try{
