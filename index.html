@@ -3382,11 +3382,39 @@ function openChat(){
       <button class="btn btn-sec" style="background:#262626;border-color:#383838;color:#ececec;padding:3px 9px;font-size:.8em" onclick="closeChat()">✕</button>
     </div>
     <div id="chatMsgs" style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;background:#0d0d0d"></div>
-    <div style="padding:12px;border-top:1px solid #2f2f2f;display:flex;gap:8px;background:#171717;align-items:center">
-      <input id="chatIn" placeholder='Message ChatGPT Assistant...' style="flex:1;background:#212121;border:1px solid #383838;color:#ffffff;border-radius:10px;padding:10px 14px;font-size:.95em;outline:none" onkeydown="if(event.key==='Enter')sendChat()">
-      <button class="btn" onclick="sendChat()" id="chatSend" style="background:#ffffff;color:#0d0d0d;border:none;border-radius:10px;padding:10px 15px;font-weight:700">➤</button>
+    <div style="padding:10px 14px 12px;border-top:1px solid #2f2f2f;background:#171717">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <label style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:.84em;color:#e5e5e5;font-weight:600">
+          <input type="checkbox" id="aiAutoEditStory" checked style="width:16px;height:16px;accent-color:#ffffff;cursor:pointer">
+          <span>⚡ <b>Direct Story Edit:</b> Allow AI to edit passages &amp; choices</span>
+        </label>
+        <span id="aiEditStatusBadge" style="font-size:.74em;color:#10a37f;background:#142921;border:1px solid #10a37f;padding:2px 6px;border-radius:4px;font-weight:700">EDIT MODE</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="chatIn" placeholder='Message ChatGPT (e.g. "Add a dragon boss fight with 2 choices")...' style="flex:1;background:#212121;border:1px solid #383838;color:#ffffff;border-radius:10px;padding:10px 14px;font-size:.95em;outline:none" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn" onclick="sendChat()" id="chatSend" style="background:#ffffff;color:#0d0d0d;border:none;border-radius:10px;padding:10px 15px;font-weight:700">➤</button>
+      </div>
     </div>`;
     document.body.appendChild(p);
+    const chk = document.getElementById('aiAutoEditStory');
+    const badge = document.getElementById('aiEditStatusBadge');
+    if(chk && badge){
+      chk.addEventListener('change', ()=>{
+        if(chk.checked){
+          badge.textContent = 'EDIT MODE';
+          badge.style.color = '#10a37f';
+          badge.style.background = '#142921';
+          badge.style.borderColor = '#10a37f';
+          toast('⚡ Direct Story Edit ON: AI will apply edits straight to your story!');
+        } else {
+          badge.textContent = 'IDEA MODE';
+          badge.style.color = '#a3a3a3';
+          badge.style.background = '#262626';
+          badge.style.borderColor = '#404040';
+          toast('💡 Idea Mode ON: AI will only give ideas without editing passages.');
+        }
+      });
+    }
   }
   p.style.display='flex';
 
@@ -3472,6 +3500,9 @@ function storyContext(){
 function sysPrompt(){
   const cfg = getOAI();
   const comp = cfg.complexity || 'Normal';
+  const chk = document.getElementById('aiAutoEditStory');
+  const canDirectEdit = chk ? chk.checked : true;
+
   let complexityGuide = 'Complexity: Normal. Balanced descriptions with 2-3 branches.';
   if(comp === 'Simple'){
     complexityGuide = 'Complexity: Simple. Keep passages concise, direct, easy for young readers, 2 straightforward choices with clear outcomes.';
@@ -3481,23 +3512,35 @@ function sysPrompt(){
 
   let intentGuide = 'Intent: The user is working on their story.';
   if(_chatIntent === 'make'){
-    intentGuide = 'Intent: The user wants to Make a CYOP from scratch. If they give an idea or prompt, generate multiple connected passages (start, branches, victory, and death) to form a complete interactive story.';
+    intentGuide = 'Intent: The user wants to Make a CYOP from scratch. When asked to create or build, formulate complete connected passages (start, branches, victory, and death) to assemble a full interactive CYOP adventure.';
   } else if(_chatIntent === 'edit'){
-    intentGuide = 'Intent: The user is editing an existing CYOA. Carefully modify passages, add or alter choices, and tune endings to polish their interactive adventure.';
+    intentGuide = 'Intent: The user is editing an existing CYOA. Tweak scenes, update choice labels, rewire broken targets, and fine-tune branch outcomes.';
   }
 
-  return 'You are the AI Story Assistant inside Storyteller CYOP, an interactive choose-your-own-path builder.\n' +
-  intentGuide + '\n' + complexityGuide + '\nCurrent story JSON:\n' + storyContext() +
-  '\nRespond ONLY with a JSON object: {"reply":"<short friendly confirmation with what you changed>","actions":[...]}. Available actions (reference passages by their label):\n'+
-  '{"action":"add_passage","title":"label","text":"scene text","type":"normal|continue|death|victory","contTarget":"label of next scene (for continue type)"}\n'+
-  '{"action":"update_passage","passage":"label","title":"new label (optional)","text":"new text (optional)","type":"new type (optional)"}\n'+
-  '{"action":"delete_passage","passage":"label"}\n'+
-  '{"action":"add_choice","passage":"label","text":"choice text","target":"target passage label or empty","targetType":"passage|death|victory"}\n'+
-  '{"action":"update_choice","passage":"label","index":0,"text":"new text","target":"new target","targetType":"passage|death|victory"}\n'+
-  '{"action":"delete_choice","passage":"label","index":0}\n'+
-  '{"action":"set_cont_target","passage":"label","target":"next scene label"}\n'+
-  '{"action":"set_story_title","title":"new title"}\n'+
-  'Rules: keep labels short and unique. New "continue" passages should set contTarget to an existing label so the story flows. Choices belong on "normal" passages. Never invent actions outside this list.';
+  if(canDirectEdit){
+    return 'You are the AI Story Assistant & Live Editor in Storyteller CYOP.\n' +
+    '*** DIRECT EDIT MODE IS ENABLED ***\n' +
+    'The user explicitly wants you to ACTUALLY EDIT and WRITE their story directly in the builder, NOT just give text advice or ideas!\n' +
+    'Whenever the user asks to add, write, continue, create, fix, rewrite, or modify scenes or choices, you MUST output concrete "actions" in your JSON payload to directly mutate the story.\n' +
+    intentGuide + '\n' + complexityGuide + '\nCurrent story JSON:\n' + storyContext() + '\n' +
+    'Respond ONLY with a JSON object: {"reply":"<friendly confirmation of the concrete edits you applied>","actions":[...]}.\n' +
+    'Available actions:\n' +
+    '{"action":"add_passage","title":"label","text":"scene prose","type":"normal|continue|death|victory","contTarget":"label of next scene (for continue type)"}\n' +
+    '{"action":"update_passage","passage":"label","title":"new label (optional)","text":"new text (optional)","type":"new type (optional)"}\n' +
+    '{"action":"delete_passage","passage":"label"}\n' +
+    '{"action":"add_choice","passage":"label","text":"choice text","target":"target passage label or empty","targetType":"passage|death|victory"}\n' +
+    '{"action":"update_choice","passage":"label","index":0,"text":"new text","target":"new target","targetType":"passage|death|victory"}\n' +
+    '{"action":"delete_choice","passage":"label","index":0}\n' +
+    '{"action":"set_cont_target","passage":"label","target":"next scene label"}\n' +
+    '{"action":"set_story_title","title":"new title"}\n' +
+    'Rules: Always execute the requested modifications using actions so the story builder updates live!';
+  } else {
+    return 'You are the AI Story Assistant in Storyteller CYOP.\n' +
+    '*** IDEA MODE ONLY (DIRECT EDIT IS DISABLED) ***\n' +
+    'The user currently wants creative ideas, brainstorming, feedback, and writing suggestions only. Do NOT output story actions.\n' +
+    intentGuide + '\n' + complexityGuide + '\nCurrent story JSON:\n' + storyContext() + '\n' +
+    'Respond ONLY with a JSON object: {"reply":"<your creative brainstorm, tips, or scene suggestions>","actions":[]}.';
+  }
 }
 async function gptEdit(userText){
   const cfg=getOAI();
@@ -3580,8 +3623,16 @@ async function sendChat(){
   try{
     const obj=await gptEdit(text);
     tp.remove();
-    const n=applyActions(obj.actions);
-    const reply=(obj.reply||'Done.')+(n?` (${n} edit${n===1?'':'s'} applied \u2014 saved to your story.)`:' (no changes were needed.)');
+    const chk = document.getElementById('aiAutoEditStory');
+    const isDirectEdit = chk ? chk.checked : true;
+    const n = isDirectEdit ? applyActions(obj.actions) : 0;
+    let editNote = '';
+    if(n > 0){
+      editNote = ` ⚡ (${n} direct edit${n===1?'':'s'} applied live to story!)`;
+    } else if(!isDirectEdit){
+      editNote = ' 💡 (Idea mode — check "Direct Story Edit" to apply directly)';
+    }
+    const reply = (obj.reply || 'Done.') + editNote;
     addBubble('ai',reply);
     _chatMsgs.push({role:'user',content:text},{role:'assistant',content:reply});
   }catch(e){
