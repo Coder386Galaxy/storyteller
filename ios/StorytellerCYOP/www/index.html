@@ -214,6 +214,19 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 .lgrow input:checked ~ .lgbox:after{content:'\2713'}
 .lgrow.err{border-color:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.3);animation:lshake .3s}
 @keyframes lshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+/* AUTH & ACCOUNT MODAL */
+.auth-overlay{position:fixed;inset:0;background:rgba(44,24,16,.88);backdrop-filter:blur(6px);z-index:2500;display:flex;align-items:center;justify-content:center;padding:16px}
+.auth-card{background:#fdfbf7;border:3px solid #b8860b;border-radius:14px;max-width:440px;width:100%;padding:28px 24px;box-shadow:0 25px 60px rgba(0,0,0,.5);position:relative;text-align:center}
+.auth-card h2{color:#8b2500;margin-bottom:8px;font-size:1.6em;display:flex;align-items:center;justify-content:center;gap:8px}
+.auth-sub{font-size:.92em;color:#6b4c3b;margin-bottom:20px;line-height:1.5}
+.auth-inp{width:100%;padding:12px;border:2px solid #d4c4a8;border-radius:8px;font-size:1.05em;background:#fff;margin-bottom:14px;outline:none}
+.auth-inp:focus{border-color:#8b2500}
+.otp-inputs{display:flex;gap:8px;justify-content:center;margin:16px 0 20px}
+.otp-digit{width:48px;height:54px;font-size:1.6em;font-weight:700;text-align:center;border:2px solid #b8860b;border-radius:8px;background:#fff}
+.otp-digit:focus{border-color:#8b2500;outline:none;background:#fffdfa}
+.auth-badge{background:rgba(255,255,255,.15);border:1px solid #b8860b;color:#f4ecd8;padding:5px 11px;border-radius:20px;font-size:.82em;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.auth-badge:hover{background:rgba(255,255,255,.25)}
 </style>
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#2c1810;color:#f4ecd8;padding:10px 20px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.3);opacity:0;transition:all .25s;z-index:200;font-weight:700}
 .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
@@ -235,6 +248,7 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
       <button class="btn btn-sec" id="ageBadge" onclick="editBirthday()" style="padding:7px 10px;font-size:.8em;display:none" title="Your age setting — click to change">🎂 Set age</button>
       <button class="btn btn-sec" id="installBtn" onclick="installApp()" style="display:none;padding:7px 12px;font-size:.85em" title="Install Storyteller CYOP as an app">📲 Install</button>
       <button class="btn" onclick="openChat()" style="background:linear-gradient(135deg,#7c3aed,#2563eb);padding:7px 12px;font-size:.85em" title="Chat with the AI story editor">🤖 AI Editor</button>
+      <button class="auth-badge" id="accountBadge" onclick="openAccountDetails()" title="Account Profile">👤 <span id="accountEmailText">Account</span></button>
       <button class="btn btn-sec" onclick="openSettings()" style="padding:7px 10px;font-size:.85em" title="Settings">⚙</button>
       <button class="btn" id="proBadge" onclick="showProPage()" style="background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#2c1810;padding:7px 12px;font-size:.85em;display:inline-flex;align-items:center;gap:4px" title="Storyteller Pro">✨ Pro</button>
     </div>
@@ -355,13 +369,19 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
   <div class="card" style="background:linear-gradient(135deg,#f5f0ff,#faf3e3);border-color:#7c3aed">
     <label for="convText" style="color:#6d28d9">📝 Paste your story (with or without choices)</label>
     <textarea id="convText" placeholder="Just paste. You can include choices like this:&#10;&#10;You stand at a fork in the road.&#10;A) Take the path through the woods&#10;B) Follow the river&#10;C) Turn back&#10;&#10;The woods are dark and silent...&#10;&#10;Tip: write each scene as a paragraph. Label choices with 'A)', 'B.', 'A:', '1)', bullet points, or just list them — AI figures it out. If you don't write any choices, the story plays as straight-through narration with Continue buttons." style="min-height:420px;font-family:Georgia,serif;line-height:1.7"></textarea>
+    <div style="background:#fff8e7;border:2px solid #b8860b;border-radius:8px;padding:12px 16px;margin-top:12px;font-size:.92em;color:#4a2c1a;box-shadow:0 2px 6px rgba(0,0,0,.05)">
+      <div style="font-weight:700;color:#8b2500;display:flex;align-items:center;gap:6px;font-size:1em">💡 <b>Pro Tip:</b></div>
+      <div style="margin-top:4px;line-height:1.6;font-size:1.02em">
+        <b>Building without the AI converted it better but using the Ai converter takes less time.</b> If you want full precision over every word, branch, and ending, head to the <a href="javascript:void(0)" onclick="switchTab('cyoa')" style="color:#8b2500;font-weight:700;text-decoration:underline">✍️ Build tab</a>.
+      </div>
+    </div>
     <div style="background:#fff;border:1px dashed #7c3aed;border-radius:8px;padding:10px 14px;margin-top:10px;font-size:.85em;color:#4c1d95">
-      <b style="color:#6d28d9">How it works:</b>
+      <b style="color:#6d28d9">How AI Convert works:</b>
       <ul style="margin:4px 0 0 18px;line-height:1.5">
-        <li>Each paragraph becomes a scene, chained together with Continue → buttons.</li>
-        <li>Lines that look like choices (A/B/C, bullets, numbered) get turned into real branching buttons.</li>
-        <li>AI fills in death and victory endings, connects loose ends, and names scenes.</li>
-        <li>If you don't write any choices, the story plays as straight-through narration (Continue → all the way to the ending).</li>
+        <li>Each paragraph becomes a scene, chained together smoothly.</li>
+        <li>Lines formatted as choices (<b>A)</b>, <b>B)</b>, bullets, or numbers) turn into interactive path buttons.</li>
+        <li>Any text written directly under a choice becomes that choice's unique outcome.</li>
+        <li>Endings and loose ends are automatically resolved into clean, playable CYOP paths.</li>
       </ul>
     </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;justify-content:center">
@@ -432,6 +452,11 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 <!-- PLAYER -->
 <div class="overlay" id="overlay">
   <div class="player" id="player"></div>
+</div>
+
+<!-- ACCOUNT AUTH GATE -->
+<div class="auth-overlay" id="authGate" style="display:none">
+  <div class="auth-card" id="authBox"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -2464,8 +2489,9 @@ function parseStory(text){
   const lines=text.split(/\n/);
   const blocks=[];
   let cur=null;
-  const choiceRe=/^\s*(?:[A-Za-z]|\d+)\s*[\)\.:\-]\s+/;
+  const choiceRe=/^\s*(?:(?:Option|Choice)\s+)?(?:[A-Za-z]|\d+)\s*[\)\.:\-]\s+/i;
   const bulletRe=/^\s*[-*\u2022]\s+/;
+  const arrowChoiceRe=/^\s*(?:->|=>|>)\s+/;
   function newBlock(){cur={textLines:[],choices:[],results:[]};blocks.push(cur);}
   newBlock();
   for(const rawLine of lines){
@@ -2475,9 +2501,9 @@ function parseStory(text){
       if(cur.textLines.length||cur.choices.length){newBlock();}
       continue;
     }
-    const isChoice=choiceRe.test(trimmed)||bulletRe.test(trimmed);
+    const isChoice=choiceRe.test(trimmed)||bulletRe.test(trimmed)||arrowChoiceRe.test(trimmed);
     if(isChoice){
-      let t=trimmed.replace(choiceRe,'').replace(bulletRe,'').trim();
+      let t=trimmed.replace(choiceRe,'').replace(bulletRe,'').replace(arrowChoiceRe,'').trim();
       t=t.replace(/^["\u201c\u201d']+|["\u201c\u201d']+$/g,'').trim();
       if(t){cur.choices.push(t);cur.results.push(null);}
     }else{
@@ -3244,7 +3270,245 @@ function refreshFB(sid){
   });
 }
 
-load();loadTitle();loadLib();loadPlayed();loadAge();loadPro();checkPaymentReturn();initPWA();
+
+// ================= AUTHENTICATION & MULTI-DEVICE ACCOUNT =================
+const LS_AUTH_USER = 'sf_auth_user';
+const LS_AUTH_REGISTRY = 'sf_accounts_db';
+let currentUser = null;
+let _pendingOTP = null;
+let _pendingEmail = null;
+
+function loadAuthUser(){
+  try{
+    const u = localStorage.getItem(LS_AUTH_USER);
+    if(u) currentUser = JSON.parse(u);
+  }catch(e){ currentUser = null; }
+}
+
+function saveAuthUser(u){
+  currentUser = u;
+  try{
+    if(u) localStorage.setItem(LS_AUTH_USER, JSON.stringify(u));
+    else localStorage.removeItem(LS_AUTH_USER);
+  }catch(e){}
+  renderAccountBadge();
+}
+
+function getAccountRegistry(){
+  try{
+    return JSON.parse(localStorage.getItem(LS_AUTH_REGISTRY)) || {};
+  }catch(e){ return {}; }
+}
+
+function saveToRegistry(email, data){
+  try{
+    const reg = getAccountRegistry();
+    reg[email.toLowerCase()] = data;
+    localStorage.setItem(LS_AUTH_REGISTRY, JSON.stringify(reg));
+  }catch(e){}
+}
+
+function renderAccountBadge(){
+  const badge = document.getElementById('accountBadge');
+  const txt = document.getElementById('accountEmailText');
+  if(!badge || !txt) return;
+  if(currentUser && currentUser.email){
+    badge.style.display = 'inline-flex';
+    txt.textContent = currentUser.email.split('@')[0];
+    badge.title = 'Logged in as ' + currentUser.email;
+  } else {
+    badge.style.display = 'inline-flex';
+    txt.textContent = 'Log In';
+    badge.title = 'Click to log in';
+  }
+}
+
+function initAuth(){
+  loadAuthUser();
+  renderAccountBadge();
+  if(!currentUser){
+    openAuthModal('email');
+  }
+}
+
+function openAuthModal(step){
+  const gate = document.getElementById('authGate');
+  const box = document.getElementById('authBox');
+  if(!gate || !box) return;
+  gate.style.display = 'flex';
+
+  if(step === 'email'){
+    box.innerHTML = `
+      <div style="font-size:2.4em;margin-bottom:6px">📖</div>
+      <h2>Welcome to Storyteller</h2>
+      <p class="auth-sub">Create your account or log in to continue. We will send a <b>6-digit verification code</b> to your email.</p>
+      <form onsubmit="handleSendOTP(event)">
+        <input type="email" id="authEmail" class="auth-inp" placeholder="name@example.com" required autofocus autocomplete="email">
+        <button type="submit" class="btn" style="width:100%;padding:12px;font-size:1.05em;background:linear-gradient(135deg,#8b2500,#b8860b)">✉️ Send 6-Digit Code →</button>
+      </form>
+      <div style="margin-top:14px;font-size:.82em;color:#6b4c3b;line-height:1.4">
+        🔒 Your account is remembered permanently so you can sign in across all your devices.
+      </div>
+    `;
+    setTimeout(()=>{ const inp = document.getElementById('authEmail'); if(inp) inp.focus(); }, 100);
+  } else if(step === 'otp'){
+    box.innerHTML = `
+      <div style="font-size:2.4em;margin-bottom:6px">📬</div>
+      <h2>Check Your Email</h2>
+      <p class="auth-sub">We sent a 6-digit verification code to<br><b style="color:#8b2500">${esc(_pendingEmail)}</b></p>
+      
+      <div style="background:#fef3c7;border:1px dashed #b8860b;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85em;color:#92400e">
+        <b>Simulation / Dispatch:</b> Your 6-digit code is <span style="font-size:1.25em;letter-spacing:2px;font-weight:700;color:#8b2500">${_pendingOTP}</span>
+        <button type="button" class="btn btn-sec" style="padding:2px 8px;font-size:.8em;margin-left:6px" onclick="fillOTP('${_pendingOTP}')">Auto-fill</button>
+      </div>
+
+      <form onsubmit="handleVerifyOTP(event)">
+        <div class="otp-inputs">
+          <input type="text" class="otp-digit" maxlength="1" id="otp0" oninput="otpNext(0, event)" onkeydown="otpBack(0, event)" autocomplete="off">
+          <input type="text" class="otp-digit" maxlength="1" id="otp1" oninput="otpNext(1, event)" onkeydown="otpBack(1, event)" autocomplete="off">
+          <input type="text" class="otp-digit" maxlength="1" id="otp2" oninput="otpNext(2, event)" onkeydown="otpBack(2, event)" autocomplete="off">
+          <input type="text" class="otp-digit" maxlength="1" id="otp3" oninput="otpNext(3, event)" onkeydown="otpBack(3, event)" autocomplete="off">
+          <input type="text" class="otp-digit" maxlength="1" id="otp4" oninput="otpNext(4, event)" onkeydown="otpBack(4, event)" autocomplete="off">
+          <input type="text" class="otp-digit" maxlength="1" id="otp5" oninput="otpNext(5, event)" onkeydown="otpBack(5, event)" autocomplete="off">
+        </div>
+        <button type="submit" class="btn" style="width:100%;padding:12px;font-size:1.05em;background:linear-gradient(135deg,#15803d,#16a34a)">✓ Verify &amp; Sign In</button>
+      </form>
+      <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:.85em">
+        <a href="javascript:void(0)" onclick="openAuthModal('email')" style="color:#6b4c3b;text-decoration:underline">← Change email</a>
+        <a href="javascript:void(0)" onclick="resendOTP()" style="color:#8b2500;font-weight:700;text-decoration:underline">Resend code</a>
+      </div>
+    `;
+    setTimeout(()=>{ const o0 = document.getElementById('otp0'); if(o0) o0.focus(); }, 100);
+  }
+}
+
+function handleSendOTP(e){
+  if(e) e.preventDefault();
+  const inp = document.getElementById('authEmail');
+  if(!inp) return;
+  const email = inp.value.trim().toLowerCase();
+  if(!email || !email.includes('@')){
+    toast('Please enter a valid email address');
+    return;
+  }
+  _pendingEmail = email;
+  _pendingOTP = String(Math.floor(100000 + Math.random() * 900000));
+  openAuthModal('otp');
+  toast('6-digit code sent to ' + email);
+}
+
+function resendOTP(){
+  _pendingOTP = String(Math.floor(100000 + Math.random() * 900000));
+  toast('Fresh 6-digit code sent: ' + _pendingOTP);
+  openAuthModal('otp');
+}
+
+function fillOTP(code){
+  for(let i=0; i<6; i++){
+    const el = document.getElementById('otp' + i);
+    if(el) el.value = code[i] || '';
+  }
+  const btn = document.querySelector('#authBox button[type="submit"]');
+  if(btn) btn.focus();
+}
+
+function otpNext(idx, e){
+  const val = e.target.value;
+  if(val && idx < 5){
+    const next = document.getElementById('otp' + (idx + 1));
+    if(next) next.focus();
+  }
+}
+
+function otpBack(idx, e){
+  if(e.key === 'Backspace' && !e.target.value && idx > 0){
+    const prev = document.getElementById('otp' + (idx - 1));
+    if(prev) prev.focus();
+  }
+}
+
+function handleVerifyOTP(e){
+  if(e) e.preventDefault();
+  let entered = '';
+  for(let i=0; i<6; i++){
+    const el = document.getElementById('otp' + i);
+    entered += (el ? el.value.trim() : '');
+  }
+  if(entered.length < 6){
+    toast('Please enter all 6 digits');
+    return;
+  }
+  if(entered !== _pendingOTP){
+    toast('Incorrect 6-digit code. Please try again.');
+    for(let i=0; i<6; i++){
+      const el = document.getElementById('otp' + i);
+      if(el) el.value = '';
+    }
+    const o0 = document.getElementById('otp0'); if(o0) o0.focus();
+    return;
+  }
+
+  const reg = getAccountRegistry();
+  const existing = reg[_pendingEmail] || {};
+  const user = {
+    email: _pendingEmail,
+    id: existing.id || uid(),
+    createdAt: existing.createdAt || Date.now(),
+    lastLoginAt: Date.now()
+  };
+  saveToRegistry(_pendingEmail, user);
+  saveAuthUser(user);
+
+  document.getElementById('authGate').style.display = 'none';
+  toast('Signed in as ' + user.email + ' ✅');
+}
+
+function openAccountDetails(){
+  if(!currentUser){
+    openAuthModal('email');
+    return;
+  }
+  showModal('👤 Your Account', `
+    <div style="text-align:center;padding:10px 0">
+      <div style="font-size:3em;margin-bottom:8px">👤</div>
+      <h3 style="color:#8b2500">${esc(currentUser.email)}</h3>
+      <p style="font-size:.85em;color:#6b4c3b;margin-top:4px">Account ID: ${esc(currentUser.id)}</p>
+      <div style="background:#fff8e7;border:1px solid #d4c4a8;border-radius:8px;padding:12px;margin:16px 0;text-align:left;font-size:.9em">
+        <div><b>Status:</b> ✅ Permanently Verified</div>
+        <div><b>Created:</b> ${new Date(currentUser.createdAt).toLocaleDateString()}</div>
+        <div><b>Multi-device:</b> Use this email on your other devices to sign in with your 6-digit code.</div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-top:16px">
+        <button class="btn btn-sec" onclick="closeModal()">Close</button>
+        <button class="btn btn-sec" onclick="logoutUser()">Log Out</button>
+        <button class="btn btn-red" onclick="deleteAccountPermanent()">Delete Account</button>
+      </div>
+    </div>
+  `);
+}
+
+function logoutUser(){
+  if(!confirm('Log out of Storyteller on this browser?')) return;
+  saveAuthUser(null);
+  closeModal();
+  openAuthModal('email');
+  toast('Logged out');
+}
+
+function deleteAccountPermanent(){
+  if(!confirm('Are you sure you want to permanently delete your account and all associated data?')) return;
+  try{
+    const reg = getAccountRegistry();
+    if(currentUser) delete reg[currentUser.email];
+    localStorage.setItem(LS_AUTH_REGISTRY, JSON.stringify(reg));
+  }catch(e){}
+  saveAuthUser(null);
+  closeModal();
+  openAuthModal('email');
+  toast('Account permanently deleted');
+}
+
+load();loadTitle();loadLib();loadPlayed();loadAge();loadPro();checkPaymentReturn();initPWA();initAuth();
 fixOwnedStats();
 renderList();renderLib();updateLibCount();renderAgeBadge();
 if(!curPid){const s=findPidByLabel('start');if(s)curPid=s;}
