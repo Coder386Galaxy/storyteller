@@ -2608,11 +2608,23 @@ function parseStory(text){
   const lines=text.split(/\n/);
   const blocks=[];
   let cur=null;
+  let detectedTitle=null;
+
+  // Ultra-smart choice regexes: A), Option 1:, 1., [Bracket Choices], bullets (- / * / •), arrows (-> / =>)
   const choiceRe=/^\s*(?:(?:Option|Choice)\s+)?(?:[A-Za-z]|\d+)\s*[\)\.:\-]\s+/i;
+  const bracketChoiceRe=/^\s*\[([^\]]+)\]\s*$/;
   const bulletRe=/^\s*[-*\u2022]\s+/;
   const arrowChoiceRe=/^\s*(?:->|=>|>)\s+/;
-  function newBlock(){cur={textLines:[],choices:[],results:[]};blocks.push(cur);}
+  const sceneHeaderRe=/^\s*(?:###?\s*)?(?:Scene|Chapter|Section|Passage|Part)\s*(?:\d+|[A-Za-z]+)?\s*[:\-]\s*(.+)$/i;
+  const gotoRe=/^\s*(?:Go\s*to|Target|Leads\s*to|Proceed\s*to)\s*[:\-]\s*(.+)$/i;
+  const titleTagRe=/^\s*(?:Title|Story\s*Title|Name)\s*[:\-]\s*(.+)$/i;
+
+  function newBlock(explicitTitle){
+    cur={textLines:[],choices:[],results:[],targets:[],explicitTitle:explicitTitle||null};
+    blocks.push(cur);
+  }
   newBlock();
+
   for(const rawLine of lines){
     const line=rawLine.replace(/\r/g,'');
     const trimmed=line.trim();
@@ -2620,15 +2632,46 @@ function parseStory(text){
       if(cur.textLines.length||cur.choices.length){newBlock();}
       continue;
     }
-    const isChoice=choiceRe.test(trimmed)||bulletRe.test(trimmed)||arrowChoiceRe.test(trimmed);
+
+    // Detect explicit story title
+    const titleMatch = trimmed.match(titleTagRe);
+    if(titleMatch && !detectedTitle){
+      detectedTitle = titleMatch[1].trim().replace(/^["']|["']$/g,'');
+      continue;
+    }
+
+    // Detect scene/chapter header markers
+    const sceneMatch = trimmed.match(sceneHeaderRe);
+    if(sceneMatch){
+      const scName = sceneMatch[1].trim().replace(/[*_#]/g,'');
+      if(cur.textLines.length || cur.choices.length){ newBlock(scName); }
+      else { cur.explicitTitle = scName; }
+      continue;
+    }
+
+    // Detect target / goto annotations directly under choices
+    const gotoMatch = trimmed.match(gotoRe);
+    if(gotoMatch && cur.choices.length){
+      const ri = cur.choices.length - 1;
+      cur.targets[ri] = gotoMatch[1].trim().replace(/^["'\[]|["'\]]$/g,'');
+      continue;
+    }
+
+    // Detect choices (bracketed, numbered, bulleted, arrowed)
+    const bracketMatch = trimmed.match(bracketChoiceRe);
+    const isChoice = bracketMatch || choiceRe.test(trimmed) || bulletRe.test(trimmed) || arrowChoiceRe.test(trimmed);
+
     if(isChoice){
-      let t=trimmed.replace(choiceRe,'').replace(bulletRe,'').replace(arrowChoiceRe,'').trim();
-      t=t.replace(/^["\u201c\u201d']+|["\u201c\u201d']+$/g,'').trim();
-      if(t){cur.choices.push(t);cur.results.push(null);}
+      let t = bracketMatch ? bracketMatch[1].trim() : trimmed.replace(choiceRe,'').replace(bulletRe,'').replace(arrowChoiceRe,'').trim();
+      t = t.replace(/^[\(\["\u201c\u201d']+|[\)\]"\u201c\u201d']+$/g,'').trim();
+      if(t){
+        cur.choices.push(t);
+        cur.results.push(null);
+        cur.targets.push(null);
+      }
     }else{
       if(cur.choices.length){
-        // Text directly under a choice = THAT choice's own result. It must never
-        // be shown to players who picked a different choice.
+        // Text directly under a choice = THAT choice's outcome result
         const ri=cur.results.length-1;
         if(!cur.results[ri])cur.results[ri]=[];
         cur.results[ri].push(trimmed);
@@ -2637,7 +2680,11 @@ function parseStory(text){
       }
     }
   }
-  return blocks.filter(b=>b.textLines.join(' ').trim().length>0||b.choices.length>0);
+  const filtered = blocks.filter(b=>b.textLines.join(' ').trim().length>0||b.choices.length>0);
+  if(detectedTitle && filtered.length > 0){
+    filtered[0]._detectedTitle = detectedTitle;
+  }
+  return filtered;
 }
 
 function titleFromText(txt,i){
@@ -2649,7 +2696,7 @@ function titleFromText(txt,i){
 }
 function pickR(arr,seed){let h=2166136261;const s=String(seed);for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return arr[(h>>>0)%arr.length];}
 
-const DEATH_OUTCOME_RE=/\b(die|dies|died|death|fatal|fatally|kill|kills|killed|killing|perish|perishes|perished|game over|doom|doomed|destroy|destroyed|executed|slain|slay|murdered|crushed|eaten|devoured|drown|drowned|drowns|starve|starved|poisoned|unconscious|bleed out|no escape|lose|loses|lost|failure|failed|fail|wiped out|succumb|succumbed|trapped|captured|imprisoned|dungeon forever|locked away)\b/i;
+const DEATH_OUTCOME_RE=/\b(die|dies|died|death|fatal|fatally|kill|kills|killed|killing|perish|perishes|perished|game over|doom|doomed|destroy|destroyed|executed|slain|slay|murdered|crushed|eaten|devoured|drown|drowned|drowns|starve|starved|poisoned|unconscious|bleed out|no escape|lose|loses|lost|failure|failed|fail|wiped out|succumb|succumbed|trapped|captured|imprisoned|dungeon forever|locked away|ashes|incinerated|annihilated|burned to death|swallowed whole|perished in flames)\b/i;
 const WIN_OUTCOME_RE=/\b(victory|victorious|win|wins|won|winning|survive|survived|survives|surviving|escape|escaped|escapes|escaping|triumph|triumphed|triumphant|conquer|conquered|conquers|conquering|beat|beaten|beats|beating|champion|success|succeeded|successful|successfully|safe|safety|safely|saved|rescued|celebrate|celebrated|hero|accomplished|freedom|liberated|solved|completed|mastered|rejoice|rejoiced|the end)\b/i;
 
 function detectEndingOutcome(text,defaultOutcome='victory'){
@@ -2690,8 +2737,7 @@ function doSmartConvert(text){
   usedTitles.add(slug('victory'));
 
   const mainIds=[];
-  // Merge adjacent short blocks (under ~280 chars) together so narration flows
-  // in bigger chunks instead of forcing a button after every short paragraph.
+  // Merge adjacent short blocks together so narration flows in bigger chunks
   const merged=[];
   blocks.forEach((b,i)=>{
     const body=b.textLines.join(' ');
@@ -2699,30 +2745,41 @@ function doSmartConvert(text){
     const prev=merged.length?merged[merged.length-1]:null;
     const prevLen=prev?prev.textLines.join(' ').length:0;
     const prevHasChoices=prev&&prev.choices&&prev.choices.length>0;
-    // Choices-only block (choice lines with no text above them): attach those
-    // choices to the previous scene — that's where the author wanted the decision.
+
+    // Choices-only block (e.g. bracketed choices on separate lines): attach directly to preceding scene
     if(prev && !b.textLines.length && b.choices.length){
       (prev.choices=prev.choices||[]).push(...b.choices);
       (prev.results=prev.results||[]).push(...b.choices.map((_,ci)=>(b.results&&b.results[ci])||null));
+      (prev.targets=prev.targets||[]).push(...b.choices.map((_,ci)=>(b.targets&&b.targets[ci])||null));
       return;
     }
-    // Merge into previous if: previous exists, previous has no choices, previous is shortish,
-    // and current has no choices (choices mark a decision point we mustn't merge past)
-    if(prev && !prevHasChoices && !b.choices.length && (prevLen<350||len<180) && prevLen+len<700){
+    // Merge into previous if: previous exists, neither has explicit titles, neither has choices, and both are short
+    if(prev && !b.explicitTitle && !prev.explicitTitle && !prevHasChoices && !b.choices.length && (prevLen<350||len<180) && prevLen+len<750){
       b.textLines.forEach(l=>prev.textLines.push(l));
       if(b.choices)b.choices.forEach(c=>prev.choices.push(c));
     }else{
       merged.push(b);
     }
   });
+
   const mainBlocks=[];
+  const titleToIdMap=new Map();
+
   merged.forEach((b,i)=>{
     const id=uid();
-    const title=i===0?'start':uniqTitle(titleFromText(b.textLines.join(' '),i));
+    let title = '';
+    if(i===0){
+      title = 'start';
+    } else if(b.explicitTitle){
+      title = uniqTitle(b.explicitTitle);
+    } else {
+      title = uniqTitle(titleFromText(b.textLines.join(' '),i));
+    }
     const body=b.textLines.join('\n\n');
     passages[id]={id,title,text:body,type:'continue',choices:[],contTarget:null};
     mainIds.push(id);
     mainBlocks.push(b);
+    titleToIdMap.set(slug(title), id);
   });
 
   let userChoiceCount=0;
@@ -2775,7 +2832,20 @@ function doSmartConvert(text){
         const choices=[];
         block.choices.forEach((ctext,ci)=>{
           const resLines=(block.results&&block.results[ci]&&block.results[ci].length)?block.results[ci].join('\n\n'):'';
+          const explicitTarget=(block.targets&&block.targets[ci])?block.targets[ci].trim():'';
           const combined=(ctext+' '+resLines).trim();
+
+          // If author specified an explicit target scene (e.g. "Go to: Chamber of Secrets")
+          let matchedTargetTitle = null;
+          if(explicitTarget){
+            for(const sid of mainIds){
+              if(slug(passages[sid].title)===slug(explicitTarget)){
+                matchedTargetTitle = passages[sid].title;
+                break;
+              }
+            }
+          }
+
           // In middle scenes: check for explicit outcome
           const midOutcome=detectEndingOutcome(combined,'advance');
           if(midOutcome==='death'){
@@ -2790,6 +2860,9 @@ function doSmartConvert(text){
             const endId=uid();
             passages[endId]={id:endId,title:tTitle,text:resLines||('You chose: '+ctext+'.\n\n— The End —'),type:'victory',choices:[]};
             choices.push({letter:letters[ci],text:ctext,target:tTitle,targetType:'passage'});
+          }else if(matchedTargetTitle){
+            // Advances to the explicitly named target scene
+            choices.push({letter:letters[ci],text:ctext,target:matchedTargetTitle,targetType:'passage'});
           }else if(resLines){
             // 1-CLICK ADVANCE: choice carries its result directly to the next scene
             // so readers never have to click a second "Continue →" button.
@@ -2836,9 +2909,10 @@ function doSmartConvert(text){
 
   cyoa={passages};
   const tInp=document.getElementById('storyTitle');
+  const detected = blocks[0] && blocks[0]._detectedTitle;
   const firstText=blocks[0].textLines.join(' ');
-  const autoTitle=(firstText.split(/\n/)[0].trim().slice(0,50))||'My Adventure';
-  if(!tInp.value.trim()){tInp.value=autoTitle;saveTitle();}
+  const autoTitle=detected || (firstText.split(/\n/)[0].trim().slice(0,50))||'My Adventure';
+  if(!tInp.value.trim() || tInp.value==='Untitled Adventure'){tInp.value=autoTitle;saveTitle();}
   curPid=mainIds[0];prevPid=null;save();
 
   document.getElementById('convProg').style.display='none';
