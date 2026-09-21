@@ -4192,7 +4192,7 @@ async function sendRealVerificationEmail(toEmail, username, code){
   const customKey = localStorage.getItem('sf_email_service_key') || '';
   const serviceType = localStorage.getItem('sf_email_service_type') || 'emailjs';
   const ejsService = localStorage.getItem('sf_emailjs_service_id') || '';
-  const ejsTemplate = localStorage.getItem('sf_emailjs_template_id') || '';
+  const ejsTemplate = localStorage.getItem('sf_emailjs_template_id') || 'template_dwz00ts';
 
   try {
     // 1. EmailJS support (Client-side directly sends real emails to real inboxes)
@@ -4410,7 +4410,7 @@ function openEmailConfigModal(){
   const curKey = localStorage.getItem('sf_email_service_key') || '';
   const curService = localStorage.getItem('sf_email_service_type') || 'emailjs';
   const curEmailJSService = localStorage.getItem('sf_emailjs_service_id') || '';
-  const curEmailJSTemplate = localStorage.getItem('sf_emailjs_template_id') || '';
+  const curEmailJSTemplate = localStorage.getItem('sf_emailjs_template_id') || 'template_dwz00ts';
 
   showModal('✉️ Connect Real Inbox Email Dispatch', `
     <div style="padding:4px 0">
