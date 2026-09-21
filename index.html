@@ -4191,7 +4191,7 @@ async function sendRealVerificationEmail(toEmail, username, code){
 
   const customKey = localStorage.getItem('sf_email_service_key') || 'oqlggNQq_p3fhVqWx';
   const serviceType = localStorage.getItem('sf_email_service_type') || 'emailjs';
-  const ejsService = localStorage.getItem('sf_emailjs_service_id') || 'default_service';
+  const ejsService = localStorage.getItem('sf_emailjs_service_id') || 'Storyteller CYOP';
   const ejsTemplate = localStorage.getItem('sf_emailjs_template_id') || 'kc8h0gi';
 
   let lastErrorDetail = '';
@@ -4396,7 +4396,7 @@ function handleVerifyOTP(e){
 function openEmailConfigModal(){
   const curKey = localStorage.getItem('sf_email_service_key') || 'oqlggNQq_p3fhVqWx';
   const curService = localStorage.getItem('sf_email_service_type') || 'emailjs';
-  const curEmailJSService = localStorage.getItem('sf_emailjs_service_id') || '';
+  const curEmailJSService = localStorage.getItem('sf_emailjs_service_id') || 'Storyteller CYOP';
   const curEmailJSTemplate = localStorage.getItem('sf_emailjs_template_id') || 'kc8h0gi';
 
   showModal('✉️ Connect Real Inbox Email Dispatch', `
