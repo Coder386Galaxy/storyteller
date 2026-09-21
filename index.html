@@ -4189,22 +4189,35 @@ async function sendRealVerificationEmail(toEmail, username, code){
   const mailSubject = 'Your Storyteller Verification Code: ' + code;
   const mailMessage = `Hello @${username},\n\nYour 6-digit verification code for Storyteller CYOP is:\n\n[ ${code} ]\n\nEnter this code to sign in and access your saved adventures.\n\nHappy storytelling!`;
 
-  const customKey = localStorage.getItem('sf_email_service_key') || '';
+  const customKey = localStorage.getItem('sf_email_service_key') || 'oqlggNQq_p3fhVqWx';
   const serviceType = localStorage.getItem('sf_email_service_type') || 'emailjs';
   const ejsService = localStorage.getItem('sf_emailjs_service_id') || 'default_service';
   const ejsTemplate = localStorage.getItem('sf_emailjs_template_id') || 'kc8h0gi';
 
   try {
     // 1. EmailJS support (Client-side directly sends real emails to real inboxes)
-    if(serviceType === 'emailjs' && customKey && ejsService && ejsTemplate && window.emailjs){
-      window.emailjs.init(customKey);
-      await window.emailjs.send(ejsService, ejsTemplate, {
+    if(serviceType === 'emailjs' && window.emailjs){
+      const pk = customKey || 'oqlggNQq_p3fhVqWx';
+      const tid = ejsTemplate || 'kc8h0gi';
+      const sid = ejsService || 'default_service';
+      window.emailjs.init(pk);
+      const params = {
         to_email: toEmail,
         email: toEmail,
         username: username,
         code: code,
         message: mailMessage
-      });
+      };
+      try {
+        await window.emailjs.send(sid, tid, params);
+      } catch(errSid) {
+        // Fallback to default_service if custom service ID was a display label
+        if(sid !== 'default_service'){
+          await window.emailjs.send('default_service', tid, params);
+        } else {
+          throw errSid;
+        }
+      }
       _emailDeliveryStatus = 'sent';
       console.log('Real verification email dispatched via EmailJS to', toEmail);
       updateEmailStatusBanner('sent');
@@ -4407,7 +4420,7 @@ function handleVerifyOTP(e){
 
 
 function openEmailConfigModal(){
-  const curKey = localStorage.getItem('sf_email_service_key') || '';
+  const curKey = localStorage.getItem('sf_email_service_key') || 'oqlggNQq_p3fhVqWx';
   const curService = localStorage.getItem('sf_email_service_type') || 'emailjs';
   const curEmailJSService = localStorage.getItem('sf_emailjs_service_id') || '';
   const curEmailJSTemplate = localStorage.getItem('sf_emailjs_template_id') || 'kc8h0gi';
