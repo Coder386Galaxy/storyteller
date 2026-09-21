@@ -437,6 +437,15 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
     <button class="btn btn-sec" onclick="showExportCode()">🔗 Share this page</button>
   </div>
 
+  <!-- ⭐ FAVORITES SECTION -->
+  <div id="favSection" style="display:none;margin-bottom:24px">
+    <h3 style="color:#b8860b;margin:18px 0 10px;border-bottom:2px solid #b8860b;padding-bottom:4px;display:flex;align-items:center;gap:6px">
+      <span>⭐</span> Favorited Adventures <span id="favCountBadge" style="font-size:.7em;background:#fef3c7;color:#8b2500;padding:2px 8px;border-radius:12px;font-weight:700"></span>
+    </h3>
+    <p class="sub" style="margin-top:0">Your bookmarked and favorite adventures.</p>
+    <div id="favList"></div>
+  </div>
+
   <h3 style="color:#8b2500;margin:18px 0 10px;border-bottom:1px solid #d4c4a8;padding-bottom:4px">🌟 Community Adventures</h3>
   <p class="sub" style="margin-top:0">Stories by other storytellers. Click any card to play.</p>
   <div id="commList"></div>
@@ -2370,6 +2379,37 @@ function renderLib(){
   const mine=document.getElementById('libList');
   const comm=document.getElementById('commList');
   library.forEach(s=>{s._owned=!s._community;});
+  // Favorites Section
+  const favSec = document.getElementById('favSection');
+  const favList = document.getElementById('favList');
+  const favCountBadge = document.getElementById('favCountBadge');
+  const favIds = getFavorites();
+
+  if(favSec && favList){
+    const allKnown = [...library, ...getCommunityStories()];
+    const favStories = [];
+    const seenFav = new Set();
+    favIds.forEach(fid => {
+      const found = allKnown.find(x => x.id === fid);
+      if(found && !seenFav.has(found.id)){
+        seenFav.add(found.id);
+        favStories.push(found);
+      }
+    });
+
+    if(favStories.length > 0){
+      favSec.style.display = 'block';
+      if(favCountBadge) favCountBadge.textContent = favStories.length + ' saved';
+      let fh = '<div class="library-grid">';
+      favStories.forEach(s => { fh += libCard(s); });
+      fh += '</div>';
+      favList.innerHTML = fh;
+    } else {
+      favSec.style.display = 'none';
+      favList.innerHTML = '';
+    }
+  }
+
   // community
   const commStories=getCommunityStories();
   if(comm){
@@ -2482,7 +2522,8 @@ function libCard(s){
     :'<span class="lstat">👥 <b>'+plays.toLocaleString()+'</b> played</span>'
      +'<span class="lstat '+pctCls+'">🏆 <b>'+wins.toLocaleString()+'</b> beat it first try <span class="lspct">('+pct+'%)</span></span>';
   const privateBadge=isPrivate?'<span class="rb" style="background:#4b5563;color:#fff" title="Private — only you can open this">🔒 Private</span>':'';
-  let buttons='<span style="flex:1"></span>';
+  const isFav = isFavorited(s.id);
+  let buttons='<button class="xbtn" onclick="toggleFavorite(\''+s.id+'\', event)" title="'+(isFav?'Remove from Favorites':'Add to Favorites')+'" style="color:'+(isFav?'#eab308':'#888')+';font-size:1.1em">'+(isFav?'★':'☆')+'</button><span style="flex:1"></span>';
   if(s._owned && !s._community){
     if(!isPrivate){
       buttons+='<button class="xbtn" onclick="event.stopPropagation();shareStoryId(\''+s.id+'\')" title="Share this story (get a code to send to a friend)">🔗</button>';
@@ -3999,6 +4040,34 @@ async function sendChat(){
 }
 
 // ================= THUMBS UP/DOWN + COMMENTS =================
+
+// ================= FAVORITES SYSTEM =================
+const LS_FAV = 'sf_favorites';
+function getFavorites(){
+  try{
+    const arr = JSON.parse(localStorage.getItem(LS_FAV));
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+function isFavorited(id){
+  return getFavorites().includes(id);
+}
+function toggleFavorite(id, e){
+  if(e) e.stopPropagation();
+  let favs = getFavorites();
+  const exists = favs.includes(id);
+  if(exists){
+    favs = favs.filter(x => x !== id);
+    toast('Removed from Favorites');
+  } else {
+    favs.push(id);
+    toast('Added to ⭐ Favorites!');
+  }
+  try{ localStorage.setItem(LS_FAV, JSON.stringify(favs)); }catch(err){}
+  if(currentUser && typeof backupAccountMemory === 'function') backupAccountMemory();
+  renderLib();
+}
+
 const LS_FB='sf_feedback';
 function getFBAll(){try{return JSON.parse(localStorage.getItem(LS_FB))||{};}catch(e){return {};}}
 function fbFor(id){const all=getFBAll();return all[id]||{vote:null,comments:[]};}
@@ -4193,6 +4262,7 @@ function backupAccountMemory(email){
       title: currentTitle,
       library: library,
       imported: getImported(),
+      favorites: getFavorites(),
       playedTracker: playedTracker,
       feedback: getFBAll(),
       dob: localStorage.getItem(LS_DOB) || '',
@@ -4261,6 +4331,13 @@ function restoreAccountMemory(user){
         if(!curImp.some(x => x.id === entry.id)) curImp.push(entry);
       });
       saveImported(curImp);
+    }
+
+    // 3.5. Restore favorites
+    if(Array.isArray(mem.favorites)){
+      const curFav = getFavorites();
+      mem.favorites.forEach(fid => { if(!curFav.includes(fid)) curFav.push(fid); });
+      try{ localStorage.setItem(LS_FAV, JSON.stringify(curFav)); }catch(e){}
     }
 
     // 4. Restore feedback (upvotes/downvotes & announcements/comments)
