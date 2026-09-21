@@ -234,7 +234,6 @@ label{display:block;font-weight:700;color:#8b2500;font-size:.9em;margin-bottom:4
 /* FREE WRITE */
 #fw{width:100%;min-height:500px;padding:18px;border:1px solid #d4c4a8;border-radius:8px;background:#fffef9;font-family:Georgia,serif;font-size:1.05em;line-height:1.7;resize:vertical}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -4228,153 +4227,37 @@ function openAuthModal(step){
   if(!gate || !box) return;
   gate.style.display = 'flex';
 
-  if(step === 'email'){
-    box.innerHTML = `
-      <div style="font-size:2.4em;margin-bottom:6px">📖</div>
-      <h2>Welcome to Storyteller</h2>
-      <p class="auth-sub">Create your account or log in to continue. We will verify your email with a <b>6-digit code</b>.</p>
-      <form onsubmit="handleSendOTP(event)">
-        <label style="display:block;text-align:left;font-size:.85em;font-weight:700;color:#8b2500;margin-bottom:4px">Email Address</label>
-        <input type="email" id="authEmail" class="auth-inp" placeholder="name@example.com" value="${esc(_pendingEmail||'')}" required autofocus autocomplete="email">
-        
-        <label style="display:block;text-align:left;font-size:.85em;font-weight:700;color:#8b2500;margin-bottom:4px">Creator Username <span style="font-weight:400;color:#6b4c3b">(shown on your stories)</span></label>
-        <div style="position:relative;margin-bottom:6px">
-          <span style="position:absolute;left:12px;top:12px;color:#8b2500;font-weight:700;font-size:1.05em">@</span>
-          <input type="text" id="authUsername" class="auth-inp" placeholder="DragonSlayer99" value="${esc(_pendingUsername||'')}" style="padding-left:30px;margin-bottom:0" required maxlength="25" pattern="[a-zA-Z0-9_]{3,25}" title="3 to 25 letters, numbers, or underscores" oninput="const e=document.getElementById('authUsernameErr');if(e)e.style.display='none';this.style.borderColor='#d4c4a8'">
-        </div>
-        <div id="authUsernameErr" style="display:none;color:#dc2626;font-size:.82em;font-weight:700;text-align:left;margin-bottom:6px"></div>
-        <div style="font-size:.78em;color:#6b4c3b;text-align:left;margin-bottom:14px">3-25 characters. Letters, numbers, and underscores only.</div>
-
-        <button type="submit" class="btn" style="width:100%;padding:12px;font-size:1.05em;background:linear-gradient(135deg,#8b2500,#b8860b)">✉️ Send 6-Digit Code →</button>
-      </form>
-      <div style="margin-top:14px;font-size:.82em;color:#6b4c3b;line-height:1.4">
-        💾 <b>Account Memory &amp; Cloud Save:</b> Your stories, progress, username, and stats are preserved permanently and synced across your devices.
-      </div>
-    `;
-    setTimeout(()=>{
-      const u = document.getElementById('authUsername');
-      const e = document.getElementById('authEmail');
-      if(e && !e.value) e.focus();
-      else if(u) u.focus();
-    }, 100);
-  } else if(step === 'otp'){
-    box.innerHTML = `
-      <div style="font-size:2.4em;margin-bottom:6px">📬</div>
-      <h2>Check Your Email</h2>
-      <p class="auth-sub">We sent a 6-digit verification code to<br><b style="color:#8b2500">${esc(_pendingEmail)}</b><br><span style="font-size:.9em;color:#6b4c3b">Creator Username: <b>@${esc(_pendingUsername||'')}</b></span></p>
+  box.innerHTML = `
+    <div style="font-size:2.4em;margin-bottom:6px">📖</div>
+    <h2>Welcome to Storyteller</h2>
+    <p class="auth-sub">Enter your email and creator username to access your account, saved adventures, and cloud memory.</p>
+    <form onsubmit="handleDirectSignIn(event)">
+      <label style="display:block;text-align:left;font-size:.85em;font-weight:700;color:#8b2500;margin-bottom:4px">Email Address</label>
+      <input type="email" id="authEmail" class="auth-inp" placeholder="name@example.com" value="${esc(_pendingEmail||'')}" required autofocus autocomplete="email">
       
-      <div id="emailStatusBanner" style="background:#fef3c7;border:1px dashed #b8860b;border-radius:8px;padding:10px;margin-bottom:14px;font-size:.85em;color:#92400e;transition:all .3s ease">
-        <b>✉️ Disagreeing / Sending to Email:</b> Dispatching verification code to <b>${esc(_pendingEmail)}</b>...<br>
-        <span style="font-size:.9em;opacity:.9">Your backup code: <span style="font-weight:700;letter-spacing:1px;color:#8b2500">${_pendingOTP}</span></span> <button type="button" class="btn btn-sec" style="padding:2px 8px;font-size:.78em;margin-left:4px" onclick="fillOTP('${_pendingOTP}')">Auto-fill</button>
+      <label style="display:block;text-align:left;font-size:.85em;font-weight:700;color:#8b2500;margin-bottom:4px">Creator Username <span style="font-weight:400;color:#6b4c3b">(shown on your stories)</span></label>
+      <div style="position:relative;margin-bottom:6px">
+        <span style="position:absolute;left:12px;top:12px;color:#8b2500;font-weight:700;font-size:1.05em">@</span>
+        <input type="text" id="authUsername" class="auth-inp" placeholder="DragonSlayer99" value="${esc(_pendingUsername||'')}" style="padding-left:30px;margin-bottom:0" required maxlength="25" pattern="[a-zA-Z0-9_]{3,25}" title="3 to 25 letters, numbers, or underscores" oninput="const e=document.getElementById('authUsernameErr');if(e)e.style.display='none';this.style.borderColor='#d4c4a8'">
       </div>
+      <div id="authUsernameErr" style="display:none;color:#dc2626;font-size:.82em;font-weight:700;text-align:left;margin-bottom:6px"></div>
+      <div style="font-size:.78em;color:#6b4c3b;text-align:left;margin-bottom:14px">3-25 characters. Letters, numbers, and underscores only.</div>
 
-      <form onsubmit="handleVerifyOTP(event)">
-        <div class="otp-inputs">
-          <input type="text" class="otp-digit" maxlength="1" id="otp0" oninput="otpNext(0, event)" onkeydown="otpBack(0, event)" autocomplete="off">
-          <input type="text" class="otp-digit" maxlength="1" id="otp1" oninput="otpNext(1, event)" onkeydown="otpBack(1, event)" autocomplete="off">
-          <input type="text" class="otp-digit" maxlength="1" id="otp2" oninput="otpNext(2, event)" onkeydown="otpBack(2, event)" autocomplete="off">
-          <input type="text" class="otp-digit" maxlength="1" id="otp3" oninput="otpNext(3, event)" onkeydown="otpBack(3, event)" autocomplete="off">
-          <input type="text" class="otp-digit" maxlength="1" id="otp4" oninput="otpNext(4, event)" onkeydown="otpBack(4, event)" autocomplete="off">
-          <input type="text" class="otp-digit" maxlength="1" id="otp5" oninput="otpNext(5, event)" onkeydown="otpBack(5, event)" autocomplete="off">
-        </div>
-        <button type="submit" class="btn" style="width:100%;padding:12px;font-size:1.05em;background:linear-gradient(135deg,#15803d,#16a34a)">✓ Verify &amp; Sign In</button>
-      </form>
-      <div style="display:flex;justify-content:space-between;margin-top:16px;font-size:.85em">
-        <a href="javascript:void(0)" onclick="openAuthModal('email')" style="color:#6b4c3b;text-decoration:underline">← Change details</a>
-        <a href="javascript:void(0)" onclick="resendOTP()" style="color:#8b2500;font-weight:700;text-decoration:underline">Resend code</a>
-      </div>
-    `;
-    setTimeout(()=>{ const o0 = document.getElementById('otp0'); if(o0) o0.focus(); }, 100);
-  }
+      <button type="submit" class="btn" style="width:100%;padding:12px;font-size:1.05em;background:linear-gradient(135deg,#8b2500,#b8860b)">Sign In / Create Account →</button>
+    </form>
+    <div style="margin-top:14px;font-size:.82em;color:#6b4c3b;line-height:1.4">
+      💾 <b>Permanent Save Memory:</b> Your stories, progress, username, and stats are preserved permanently and synced across your devices.
+    </div>
+  `;
+  setTimeout(()=>{
+    const u = document.getElementById('authUsername');
+    const e = document.getElementById('authEmail');
+    if(e && !e.value) e.focus();
+    else if(u) u.focus();
+  }, 100);
 }
 
-let _emailDeliveryStatus = 'sending'; // 'sent' | 'fallback' | 'failed'
-
-// Production Real Email Dispatcher
-// Dispatches verification email via backend email service API with automatic fallback simulation
-async function sendRealVerificationEmail(toEmail, username, code){
-  _emailDeliveryStatus = 'sending';
-  const mailSubject = 'Your Storyteller Verification Code: ' + code;
-  const mailMessage = `Hello @${username},\n\nYour 6-digit verification code for Storyteller CYOP is:\n\n[ ${code} ]\n\nEnter this code to sign in and access your saved adventures.\n\nHappy storytelling!`;
-
-  const customKey = localStorage.getItem('sf_email_service_key') || 'oqlggNQq_p3fhVqWx';
-  const serviceType = localStorage.getItem('sf_email_service_type') || 'emailjs';
-  const ejsService = localStorage.getItem('sf_emailjs_service_id') || 'Storyteller CYOP';
-  const ejsTemplate = localStorage.getItem('sf_emailjs_template_id') || 'kc8h0gi';
-
-  let lastErrorDetail = '';
-
-  try {
-    // 1. EmailJS support (Client-side directly sends real emails to real inboxes)
-    if(serviceType === 'emailjs' && window.emailjs){
-      const pk = customKey || 'oqlggNQq_p3fhVqWx';
-      const tid = ejsTemplate || 'kc8h0gi';
-      const sid = ejsService || 'default_service';
-      window.emailjs.init({ publicKey: pk });
-      const params = {
-        to_email: toEmail,
-        email: toEmail,
-        recipient: toEmail,
-        user_email: toEmail,
-        username: username,
-        name: username,
-        code: code,
-        message: mailMessage
-      };
-
-      try {
-        const resp = await window.emailjs.send(sid, tid, params);
-        console.log('EmailJS response:', resp);
-        _emailDeliveryStatus = 'sent';
-        updateEmailStatusBanner('sent');
-        return true;
-      } catch(errSid) {
-        lastErrorDetail = (errSid && (errSid.text || errSid.message)) ? (errSid.text || errSid.message) : String(errSid);
-        console.warn('Primary EmailJS attempt failed with:', lastErrorDetail);
-        if(sid !== 'default_service'){
-          try {
-            const resp2 = await window.emailjs.send('default_service', tid, params);
-            console.log('EmailJS default_service fallback succeeded:', resp2);
-            _emailDeliveryStatus = 'sent';
-            updateEmailStatusBanner('sent');
-            return true;
-          } catch(errDef) {
-            lastErrorDetail = (errDef && (errDef.text || errDef.message)) ? (errDef.text || errDef.message) : String(errDef);
-            console.warn('Fallback EmailJS attempt failed:', lastErrorDetail);
-          }
-        }
-      }
-    }
-  } catch(err) {
-    lastErrorDetail = (err && (err.text || err.message)) ? (err.text || err.message) : String(err);
-    console.warn('Real mail dispatch encountered error:', err);
-  }
-
-  _emailDeliveryStatus = 'fallback';
-  updateEmailStatusBanner('fallback', lastErrorDetail);
-  return false;
-}
-
-function updateEmailStatusBanner(status, errDetail){
-  const b = document.getElementById('emailStatusBanner');
-  if(!b) return;
-  if(status === 'sent'){
-    b.style.display = 'block';
-    b.style.background = '#dcfce7';
-    b.style.borderColor = '#16a34a';
-    b.style.color = '#15803d';
-    b.innerHTML = `<b>✓ Email Dispatched:</b> Code sent to <b>${esc(_pendingEmail)}</b>! Check your inbox &amp; spam folder.`;
-  } else {
-    b.style.display = 'block';
-    b.style.background = '#fef3c7';
-    b.style.borderColor = '#b8860b';
-    b.style.color = '#92400e';
-    const reasonText = errDetail ? `<div style="font-size:.78em;color:#b91c1c;margin-top:4px">EmailJS response: <i>${esc(errDetail)}</i></div>` : '';
-    b.innerHTML = `<b>📬 Code Ready:</b> Your 6-digit code is <span style="font-size:1.25em;letter-spacing:2px;font-weight:700;color:#8b2500">${_pendingOTP}</span> <button type="button" class="btn btn-sec" style="padding:2px 8px;font-size:.8em;margin-left:6px" onclick="fillOTP('${_pendingOTP}')">Auto-fill</button>${reasonText}`;
-  }
-}
-
-async function handleSendOTP(e){
+function handleDirectSignIn(e){
   if(e) e.preventDefault();
   const inpEmail = document.getElementById('authEmail');
   const inpUser = document.getElementById('authUsername');
@@ -4416,78 +4299,16 @@ async function handleSendOTP(e){
     }
   }
 
-  _pendingEmail = email;
-  _pendingUsername = uname;
-  _pendingOTP = String(Math.floor(100000 + Math.random() * 900000));
-  
-  openAuthModal('otp');
-  toast('Sending 6-digit code to ' + email + '...');
-  sendRealVerificationEmail(email, uname, _pendingOTP);
-}
-
-function resendOTP(){
-  _pendingOTP = String(Math.floor(100000 + Math.random() * 900000));
-  openAuthModal('otp');
-  toast('Fresh code dispatched to ' + _pendingEmail);
-  sendRealVerificationEmail(_pendingEmail, _pendingUsername, _pendingOTP);
-}
-
-function fillOTP(code){
-  for(let i=0; i<6; i++){
-    const el = document.getElementById('otp' + i);
-    if(el) el.value = code[i] || '';
-  }
-  const btn = document.querySelector('#authBox button[type="submit"]');
-  if(btn) btn.focus();
-}
-
-function otpNext(idx, e){
-  const val = e.target.value;
-  if(val && idx < 5){
-    const next = document.getElementById('otp' + (idx + 1));
-    if(next) next.focus();
-  }
-}
-
-function otpBack(idx, e){
-  if(e.key === 'Backspace' && !e.target.value && idx > 0){
-    const prev = document.getElementById('otp' + (idx - 1));
-    if(prev) prev.focus();
-  }
-}
-
-function handleVerifyOTP(e){
-  if(e) e.preventDefault();
-  let entered = '';
-  for(let i=0; i<6; i++){
-    const el = document.getElementById('otp' + i);
-    entered += (el ? el.value.trim() : '');
-  }
-  if(entered.length < 6){
-    toast('Please enter all 6 digits');
-    return;
-  }
-  if(entered !== _pendingOTP){
-    toast('Incorrect 6-digit code. Please try again.');
-    for(let i=0; i<6; i++){
-      const el = document.getElementById('otp' + i);
-      if(el) el.value = '';
-    }
-    const o0 = document.getElementById('otp0'); if(o0) o0.focus();
-    return;
-  }
-
-  const reg = getAccountRegistry();
-  const existing = reg[_pendingEmail] || {};
+  const existing = reg[email] || {};
   const user = {
-    email: _pendingEmail,
-    username: _pendingUsername || existing.username || _pendingEmail.split('@')[0],
+    email: email,
+    username: uname,
     id: existing.id || uid(),
     createdAt: existing.createdAt || Date.now(),
     lastLoginAt: Date.now(),
     memory: existing.memory || null
   };
-  saveToRegistry(_pendingEmail, user);
+  saveToRegistry(email, user);
   saveAuthUser(user);
 
   // Restore saved account state
@@ -4498,89 +4319,6 @@ function handleVerifyOTP(e){
   document.getElementById('authGate').style.display = 'none';
   renderLib();renderList();renderEditor();
   toast('Signed in as @' + user.username + ' (' + user.email + ') ✅');
-}
-
-
-function openEmailConfigModal(){
-  const curKey = localStorage.getItem('sf_email_service_key') || 'oqlggNQq_p3fhVqWx';
-  const curService = localStorage.getItem('sf_email_service_type') || 'emailjs';
-  const curEmailJSService = localStorage.getItem('sf_emailjs_service_id') || 'Storyteller CYOP';
-  const curEmailJSTemplate = localStorage.getItem('sf_emailjs_template_id') || 'kc8h0gi';
-
-  showModal('✉️ Connect Real Inbox Email Dispatch', `
-    <div style="padding:4px 0">
-      <div style="font-size:2.2em;text-align:center;margin-bottom:6px">📬</div>
-      <h3 style="color:#8b2500;text-align:center;margin-bottom:6px">How to send codes to real inboxes</h3>
-      <p style="font-size:.86em;color:#6b4c3b;line-height:1.45;margin-bottom:12px">
-        Because frontend web apps run inside users' browsers, browsers cannot directly send raw emails without an email API key (to prevent spam). Here are the two 100% free ways to have Storyteller send verification codes straight to your users' inboxes:
-      </p>
-
-      <div style="background:#fff8e7;border:1px solid #d4c4a8;border-radius:8px;padding:12px;margin-bottom:14px;font-size:.85em;line-height:1.5">
-        <b style="color:#8b2500">Method 1 (Fastest &amp; Free — EmailJS):</b>
-        <ol style="margin:6px 0 6px 18px;padding:0">
-          <li>Create a free account at <b><a href="https://www.emailjs.com" target="_blank" style="color:#8b2500;text-decoration:underline">emailjs.com</a></b> (takes 60 seconds, no credit card).</li>
-          <li>Add an Email Service (connect your Gmail, Outlook, or Yahoo).</li>
-          <li>Create an Email Template with subject <code>Your Verification Code</code> and content <code>Your code is: {{code}}</code>.</li>
-          <li>Paste your <b>Public Key</b>, <b>Service ID</b>, and <b>Template ID</b> below.</li>
-        </ol>
-      </div>
-
-      <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">Provider</label>
-      <select id="cfgEmailService" style="width:100%;padding:9px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:12px" onchange="toggleEmailServiceFields(this.value)">
-        <option value="emailjs" ${curService==='emailjs'?'selected':''}>EmailJS (Free 200 emails/month to any Gmail/inbox)</option>
-        <option value="resend" ${curService==='resend'?'selected':''}>Resend API (resend.com API Key)</option>
-        <option value="web3forms" ${curService==='web3forms'?'selected':''}>Web3Forms Access Key</option>
-      </select>
-
-      <div id="emailjsFields" style="display:${curService==='emailjs'?'block':'none'}">
-        <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">EmailJS Public Key</label>
-        <input type="text" id="cfgEmailKey" value="${esc(curKey)}" placeholder="e.g. user_abcdef123456" style="width:100%;padding:8px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:10px">
-
-        <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">EmailJS Service ID</label>
-        <input type="text" id="cfgEmailJSService" value="${esc(curEmailJSService)}" placeholder="e.g. service_xxxxxxx" style="width:100%;padding:8px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:10px">
-
-        <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">EmailJS Template ID</label>
-        <input type="text" id="cfgEmailJSTemplate" value="${esc(curEmailJSTemplate)}" placeholder="e.g. template_xxxxxxx" style="width:100%;padding:8px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:12px">
-      </div>
-
-      <div id="apiFields" style="display:${curService!=='emailjs'?'block':'none'}">
-        <label style="display:block;font-weight:700;color:#8b2500;margin-bottom:4px">API Key / Access Token</label>
-        <input type="text" id="cfgApiGeneralKey" value="${esc(curKey)}" placeholder="Enter API Key" style="width:100%;padding:8px;border:1px solid #d4c4a8;border-radius:6px;background:#fff;margin-bottom:12px">
-      </div>
-
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn btn-sec" onclick="closeModal()">Cancel</button>
-        <button class="btn" onclick="saveEmailConfig()">Save Dispatcher</button>
-      </div>
-    </div>
-  `);
-}
-
-function toggleEmailServiceFields(svc){
-  const ejs = document.getElementById('emailjsFields');
-  const api = document.getElementById('apiFields');
-  if(ejs) ejs.style.display = (svc === 'emailjs') ? 'block' : 'none';
-  if(api) api.style.display = (svc !== 'emailjs') ? 'block' : 'none';
-}
-
-function saveEmailConfig(){
-  const s = document.getElementById('cfgEmailService').value;
-  let key = '';
-  if(s === 'emailjs'){
-    key = (document.getElementById('cfgEmailKey') ? document.getElementById('cfgEmailKey').value.trim() : '');
-    const svcId = (document.getElementById('cfgEmailJSService') ? document.getElementById('cfgEmailJSService').value.trim() : '');
-    const tplId = (document.getElementById('cfgEmailJSTemplate') ? document.getElementById('cfgEmailJSTemplate').value.trim() : '');
-    localStorage.setItem('sf_emailjs_service_id', svcId);
-    localStorage.setItem('sf_emailjs_template_id', tplId);
-  } else {
-    key = (document.getElementById('cfgApiGeneralKey') ? document.getElementById('cfgApiGeneralKey').value.trim() : '');
-  }
-  try{
-    localStorage.setItem('sf_email_service_key', key);
-    localStorage.setItem('sf_email_service_type', s);
-  }catch(e){}
-  closeModal();
-  toast('Email service configured! ✅ Codes will now be sent.');
 }
 function openAccountDetails(){
   if(!currentUser){
@@ -4614,7 +4352,7 @@ function openAccountDetails(){
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-green" style="padding:6px 12px;font-size:.85em" onclick="manualSaveAccountMemory()">💾 Save State Now</button>
           <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="manualRestoreAccountMemory()">🔄 Restore From Memory</button>
-          <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="promptChangeUsername()">✏️ Change Username</button><button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="openEmailConfigModal()">✉️ Email Setup</button>
+          <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="promptChangeUsername()">✏️ Change Username</button>
         </div>
       </div>
 
