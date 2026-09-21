@@ -4194,87 +4194,60 @@ async function sendRealVerificationEmail(toEmail, username, code){
   const ejsService = localStorage.getItem('sf_emailjs_service_id') || 'default_service';
   const ejsTemplate = localStorage.getItem('sf_emailjs_template_id') || 'kc8h0gi';
 
+  let lastErrorDetail = '';
+
   try {
     // 1. EmailJS support (Client-side directly sends real emails to real inboxes)
     if(serviceType === 'emailjs' && window.emailjs){
       const pk = customKey || 'oqlggNQq_p3fhVqWx';
       const tid = ejsTemplate || 'kc8h0gi';
       const sid = ejsService || 'default_service';
-      window.emailjs.init(pk);
+      window.emailjs.init({ publicKey: pk });
       const params = {
         to_email: toEmail,
         email: toEmail,
+        recipient: toEmail,
+        user_email: toEmail,
         username: username,
+        name: username,
         code: code,
         message: mailMessage
       };
+
       try {
-        await window.emailjs.send(sid, tid, params);
+        const resp = await window.emailjs.send(sid, tid, params);
+        console.log('EmailJS response:', resp);
+        _emailDeliveryStatus = 'sent';
+        updateEmailStatusBanner('sent');
+        return true;
       } catch(errSid) {
-        // Fallback to default_service if custom service ID was a display label
+        lastErrorDetail = (errSid && (errSid.text || errSid.message)) ? (errSid.text || errSid.message) : String(errSid);
+        console.warn('Primary EmailJS attempt failed with:', lastErrorDetail);
         if(sid !== 'default_service'){
-          await window.emailjs.send('default_service', tid, params);
-        } else {
-          throw errSid;
+          try {
+            const resp2 = await window.emailjs.send('default_service', tid, params);
+            console.log('EmailJS default_service fallback succeeded:', resp2);
+            _emailDeliveryStatus = 'sent';
+            updateEmailStatusBanner('sent');
+            return true;
+          } catch(errDef) {
+            lastErrorDetail = (errDef && (errDef.text || errDef.message)) ? (errDef.text || errDef.message) : String(errDef);
+            console.warn('Fallback EmailJS attempt failed:', lastErrorDetail);
+          }
         }
-      }
-      _emailDeliveryStatus = 'sent';
-      console.log('Real verification email dispatched via EmailJS to', toEmail);
-      updateEmailStatusBanner('sent');
-      return true;
-    }
-
-    // 2. Resend API support
-    if(serviceType === 'resend' && customKey){
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + customKey
-        },
-        body: JSON.stringify({
-          from: 'Storyteller <onboarding@resend.dev>',
-          to: [toEmail],
-          subject: mailSubject,
-          text: mailMessage
-        })
-      });
-      if(res.ok){
-        _emailDeliveryStatus = 'sent';
-        updateEmailStatusBanner('sent');
-        return true;
-      }
-    }
-
-    // 3. Web3Forms support
-    if(serviceType === 'web3forms' && customKey){
-      const resp = await fetch('https://api.web3forms.com/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          access_key: customKey,
-          subject: mailSubject,
-          from_name: 'Storyteller Verification',
-          to_email: toEmail,
-          replyto: toEmail,
-          message: mailMessage + '\n\nSent to: ' + toEmail
-        })
-      });
-      if(resp.ok){
-        _emailDeliveryStatus = 'sent';
-        updateEmailStatusBanner('sent');
-        return true;
       }
     }
   } catch(err) {
-    console.warn('Real mail dispatch encountered error, activating preview backup:', err);
+    lastErrorDetail = (err && (err.text || err.message)) ? (err.text || err.message) : String(err);
+    console.warn('Real mail dispatch encountered error:', err);
   }
+
   _emailDeliveryStatus = 'fallback';
-  updateEmailStatusBanner('fallback');
+  updateEmailStatusBanner('fallback', lastErrorDetail);
   return false;
 }
 
-function updateEmailStatusBanner(status){
+function updateEmailStatusBanner(status, errDetail){
   const b = document.getElementById('emailStatusBanner');
   if(!b) return;
   if(status === 'sent'){
@@ -4282,13 +4255,14 @@ function updateEmailStatusBanner(status){
     b.style.background = '#dcfce7';
     b.style.borderColor = '#16a34a';
     b.style.color = '#15803d';
-    b.innerHTML = `<b>✓ Email Dispatched:</b> Code sent to <b>${esc(_pendingEmail)}</b>. Check your inbox &amp; spam folder!`;
+    b.innerHTML = `<b>✓ Email Dispatched:</b> Code sent to <b>${esc(_pendingEmail)}</b>! Check your inbox &amp; spam folder.`;
   } else {
     b.style.display = 'block';
     b.style.background = '#fef3c7';
     b.style.borderColor = '#b8860b';
     b.style.color = '#92400e';
-    b.innerHTML = `<b>📬 Code Ready:</b> We dispatched to <b>${esc(_pendingEmail)}</b>. If your email is delayed, your code is <span style="font-size:1.25em;letter-spacing:2px;font-weight:700;color:#8b2500">${_pendingOTP}</span> <button type="button" class="btn btn-sec" style="padding:2px 8px;font-size:.8em;margin-left:6px" onclick="fillOTP('${_pendingOTP}')">Auto-fill</button>`;
+    const reasonText = errDetail ? `<div style="font-size:.78em;color:#b91c1c;margin-top:4px">EmailJS response: <i>${esc(errDetail)}</i></div>` : '';
+    b.innerHTML = `<b>📬 Code Ready:</b> Your 6-digit code is <span style="font-size:1.25em;letter-spacing:2px;font-weight:700;color:#8b2500">${_pendingOTP}</span> <button type="button" class="btn btn-sec" style="padding:2px 8px;font-size:.8em;margin-left:6px" onclick="fillOTP('${_pendingOTP}')">Auto-fill</button>${reasonText}`;
   }
 }
 
