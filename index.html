@@ -758,7 +758,13 @@ function newStory(blank){
   },50);
   toast('Fresh blank story — start writing!');
 }
-function saveTitle(){try{localStorage.setItem(LS_TITLE,document.getElementById('storyTitle').value);}catch(e){}}
+function saveTitle(){
+  try{localStorage.setItem(LS_TITLE,document.getElementById('storyTitle').value);}catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function'){
+    if(window._backupTitleTimer) clearTimeout(window._backupTitleTimer);
+    window._backupTitleTimer = setTimeout(()=>{ backupAccountMemory(currentUser.email); }, 1500);
+  }
+}
 function loadTitle(){try{const t=localStorage.getItem(LS_TITLE);if(t)document.getElementById('storyTitle').value=t;}catch(e){}}
 
 // ====== TABS ======
@@ -1596,6 +1602,7 @@ function loadAge(){
 function saveDOB(dob){
   try{localStorage.setItem(LS_DOB,dob);}catch(e){}
   userAge=calcAge(dob);
+  if(currentUser && typeof backupAccountMemory === 'function') backupAccountMemory();
 }
 function canViewRating(score,story){
   if(userAge<0)return false;
@@ -3129,7 +3136,10 @@ function getImported(){
     return Array.isArray(arr)?arr:[];
   }catch(e){return [];}
 }
-function saveImported(arr){try{localStorage.setItem(LS_IMPORTED,JSON.stringify(arr));}catch(e){}}
+function saveImported(arr){
+  try{localStorage.setItem(LS_IMPORTED,JSON.stringify(arr));}catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function') backupAccountMemory();
+}
 function addImported(entry){
   const arr=getImported();
   if(arr.some(x=>x.id===entry.id)||library.some(x=>x.id===entry.id))return false;
@@ -3938,7 +3948,13 @@ async function sendChat(){
 const LS_FB='sf_feedback';
 function getFBAll(){try{return JSON.parse(localStorage.getItem(LS_FB))||{};}catch(e){return {};}}
 function fbFor(id){const all=getFBAll();return all[id]||{vote:null,comments:[]};}
-function saveFB(id,f){const all=getFBAll();all[id]=f;try{localStorage.setItem(LS_FB,JSON.stringify(all));}catch(e){}}
+function saveFB(id,f){
+  const all=getFBAll();all[id]=f;try{localStorage.setItem(LS_FB,JSON.stringify(all));}catch(e){}
+  if(currentUser && typeof backupAccountMemory === 'function'){
+    if(window._backupFbTimer) clearTimeout(window._backupFbTimer);
+    window._backupFbTimer = setTimeout(()=>{ backupAccountMemory(currentUser.email); }, 1200);
+  }
+}
 function voteFB(id,v){
   const f=fbFor(id);f.vote=(f.vote===v)?null:v;saveFB(id,f);refreshFB(id);
   toast(f.vote==='up'?'\ud83d\udc4d Thanks for the thumbs up!':f.vote==='down'?'\ud83d\udc4e Noted \u2014 thanks for the feedback.':'Vote removed.');
@@ -4110,21 +4126,33 @@ function backupAccountMemory(email){
   try{
     const reg = getAccountRegistry();
     const acct = reg[targetEmail] || {};
+    
+    // Comprehensive memory state
+    const titleEl = document.getElementById('storyTitle');
+    const currentTitle = titleEl ? titleEl.value : (localStorage.getItem(LS_TITLE) || '');
+    
     const memory = {
+      version: 2,
+      savedAt: Date.now(),
       cyoa: cyoa,
       curPid: curPid,
-      title: document.getElementById('storyTitle') ? document.getElementById('storyTitle').value : '',
+      title: currentTitle,
       library: library,
+      imported: getImported(),
       playedTracker: playedTracker,
-      dob: localStorage.getItem('sf_dob') || '',
-      openai: localStorage.getItem('sf_openai') || '',
-      pro: localStorage.getItem('sf_pro') || '0',
-      savedAt: Date.now()
+      feedback: getFBAll(),
+      dob: localStorage.getItem(LS_DOB) || '',
+      openai: localStorage.getItem(LS_OAI) || '',
+      pro: localStorage.getItem(LS_PRO) || '0',
+      editingStoryId: (typeof _editingStoryId !== 'undefined' ? _editingStoryId : null)
     };
+
     acct.memory = memory;
     acct.lastBackup = Date.now();
+    if(currentUser && currentUser.username) acct.username = currentUser.username;
     reg[targetEmail] = acct;
     localStorage.setItem(LS_AUTH_REGISTRY, JSON.stringify(reg));
+
     if(currentUser && currentUser.email.toLowerCase() === targetEmail){
       currentUser.memory = memory;
       saveAuthUser(currentUser);
@@ -4140,19 +4168,22 @@ function restoreAccountMemory(user){
     const mem = (acct && acct.memory) || user.memory;
     if(!mem) return;
 
-    // 1. Restore story draft
+    // 1. Restore story draft & title
     if(mem.cyoa && mem.cyoa.passages && Object.keys(mem.cyoa.passages).length > 0){
       cyoa = mem.cyoa;
       if(mem.curPid && cyoa.passages[mem.curPid]) curPid = mem.curPid;
       try{ localStorage.setItem(LS_CYOA, JSON.stringify(cyoa)); }catch(e){}
     }
-    if(mem.title){
+    if(typeof mem.title === 'string'){
       const el = document.getElementById('storyTitle');
       if(el) el.value = mem.title;
-      try{ localStorage.setItem('sf_title', mem.title); }catch(e){}
+      try{ localStorage.setItem(LS_TITLE, mem.title); }catch(e){}
+    }
+    if(mem.editingStoryId){
+      _editingStoryId = mem.editingStoryId;
     }
 
-    // 2. Restore published and imported library
+    // 2. Restore published library
     if(Array.isArray(mem.library) && mem.library.length > 0){
       const existingMap = new Map();
       library.forEach(x => existingMap.set(x.id, x));
@@ -4160,44 +4191,76 @@ function restoreAccountMemory(user){
         if(!existingMap.has(item.id)){
           library.push(item);
         } else {
-          // Keep highest play count and win stats
+          // Merge & keep highest play count and win stats
           const cur = existingMap.get(item.id);
           cur.plays = Math.max(cur.plays||0, item.plays||0);
           cur.firstTryWins = Math.max(cur.firstTryWins||0, item.firstTryWins||0);
         }
       });
-      try{ localStorage.setItem(LS_LIB, JSON.stringify(library)); }catch(e){}
+      saveLib();
     }
 
-    // 3. Restore played tracker & beats
+    // 3. Restore imported community adventures
+    if(Array.isArray(mem.imported) && mem.imported.length > 0){
+      const curImp = getImported();
+      mem.imported.forEach(entry => {
+        if(!curImp.some(x => x.id === entry.id)) curImp.push(entry);
+      });
+      saveImported(curImp);
+    }
+
+    // 4. Restore feedback (upvotes/downvotes & announcements/comments)
+    if(mem.feedback && typeof mem.feedback === 'object'){
+      const curFB = getFBAll();
+      for(const sid in mem.feedback){
+        if(!curFB[sid]){
+          curFB[sid] = mem.feedback[sid];
+        } else {
+          // Merge comments
+          const existCmt = new Set((curFB[sid].comments || []).map(c => c.id || (c.name+c.text)));
+          (mem.feedback[sid].comments || []).forEach(cmt => {
+            const key = cmt.id || (cmt.name + cmt.text);
+            if(!existCmt.has(key)){
+              curFB[sid].comments = curFB[sid].comments || [];
+              curFB[sid].comments.push(cmt);
+            }
+          });
+          if(!curFB[sid].vote && mem.feedback[sid].vote){
+            curFB[sid].vote = mem.feedback[sid].vote;
+          }
+        }
+      }
+      try{ localStorage.setItem(LS_FB, JSON.stringify(curFB)); }catch(e){}
+    }
+
+    // 5. Restore played tracker & beats
     if(mem.playedTracker){
       playedTracker = Object.assign({}, playedTracker, mem.playedTracker);
-      try{ localStorage.setItem(LS_PLAYED, JSON.stringify(playedTracker)); }catch(e){}
+      savePlayed();
     }
 
-    // 4. Restore DOB & age
+    // 6. Restore DOB & age rating
     if(mem.dob){
-      try{ localStorage.setItem('sf_dob', mem.dob); }catch(e){}
-      userAge = calcAge(mem.dob);
+      saveDOB(mem.dob);
     }
 
-    // 5. Restore OpenAI API configuration
+    // 7. Restore OpenAI API configuration
     if(mem.openai){
       try{
-        if(!localStorage.getItem('sf_openai') || localStorage.getItem('sf_openai') === '{}'){
-          localStorage.setItem('sf_openai', mem.openai);
+        if(!localStorage.getItem(LS_OAI) || localStorage.getItem(LS_OAI) === '{}'){
+          localStorage.setItem(LS_OAI, mem.openai);
         }
       }catch(e){}
     }
 
-    // 6. Restore Pro membership
+    // 8. Restore Yearly Pass / Pro membership
     if(mem.pro === '1'){
-      try{ localStorage.setItem('sf_pro', '1'); }catch(e){}
+      try{ localStorage.setItem(LS_PRO, '1'); }catch(e){}
+      isPro = true;
       renderProBadge();
     }
   }catch(e){ console.warn('Memory restore failed', e); }
 }
-
 function renderAccountBadge(){
   const badge = document.getElementById('accountBadge');
   const txt = document.getElementById('accountEmailText');
@@ -4353,6 +4416,8 @@ function openAccountDetails(){
           <button class="btn btn-green" style="padding:6px 12px;font-size:.85em" onclick="manualSaveAccountMemory()">💾 Save State Now</button>
           <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="manualRestoreAccountMemory()">🔄 Restore From Memory</button>
           <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="promptChangeUsername()">✏️ Change Username</button>
+          <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="exportAccountMemoryFile()">📦 Export Backup File</button>
+          <button class="btn btn-sec" style="padding:6px 12px;font-size:.85em" onclick="importAccountMemoryFile()">📥 Import Backup File</button>
         </div>
       </div>
 
@@ -4363,6 +4428,60 @@ function openAccountDetails(){
       </div>
     </div>
   `);
+}
+
+
+function exportAccountMemoryFile(){
+  if(!currentUser){toast('Please sign in first');return;}
+  backupAccountMemory(currentUser.email);
+  const reg = getAccountRegistry();
+  const acct = reg[currentUser.email.toLowerCase()] || {};
+  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(acct, null, 2));
+  const a = document.createElement('a');
+  a.setAttribute('href', dataStr);
+  a.setAttribute('download', 'storyteller-backup-' + (currentUser.username||'account') + '.json');
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  toast('Account backup file downloaded! 📦');
+}
+
+function importAccountMemoryFile(){
+  const inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = '.json,application/json';
+  inp.onchange = function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt){
+      try{
+        const imported = JSON.parse(evt.target.result);
+        if(!imported || (!imported.memory && !imported.cyoa)){
+          toast('Invalid backup file');
+          return;
+        }
+        if(currentUser){
+          const mem = imported.memory || imported;
+          const reg = getAccountRegistry();
+          const acct = reg[currentUser.email.toLowerCase()] || {};
+          acct.memory = mem;
+          reg[currentUser.email.toLowerCase()] = acct;
+          localStorage.setItem(LS_AUTH_REGISTRY, JSON.stringify(reg));
+          currentUser.memory = mem;
+          saveAuthUser(currentUser);
+          restoreAccountMemory(currentUser);
+          renderLib();renderList();renderEditor();
+          toast('Backup file restored successfully! 🔄');
+          closeModal();
+        }
+      }catch(err){
+        toast('Failed to load backup: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  inp.click();
 }
 
 function promptChangeUsername(){
