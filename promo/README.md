@@ -10,13 +10,26 @@ same copy, same components — so every pixel is reproducible and can be animate
 
 ## Output
 
-| File | Where it goes |
-| --- | --- |
-| `out/storyteller-cyop-promo-vertical.mp4` | Reels / Shorts / TikTok / Stories (1080×1920) |
-| `out/storyteller-cyop-promo-square.mp4` | Feed posts (1080×1080) |
-| `out/storyteller-cyop-promo-landscape.mp4` | YouTube / website hero (1920×1080) |
+Renders land in `promo/film/` (gitignored build output — regenerate any time).
 
-All three are 30.4 s, 30 fps, H.264 + `+faststart` (safe to upload anywhere).
+| File | Where it goes | Size |
+| --- | --- | --- |
+| `film/storyteller-cyop-promo-vertical.mp4` | Reels / Shorts / TikTok / Stories (1080×1920) | 14.7 MB |
+| `film/storyteller-cyop-promo-square.mp4` | Feed posts (1080×1080) | 8.4 MB |
+| `film/storyteller-cyop-promo-landscape.mp4` | YouTube / website hero (1920×1080) | 14.7 MB |
+| `film/posters/*.png` | thumbnails / covers — hook, product, reader, end card per aspect | |
+| `film/storyboard.png` | 16-frame storyboard for review | |
+
+All three cuts are 30.4 s, 30 fps, H.264 `yuv420p` + `faststart`, and small enough
+to upload straight to any platform.
+
+To watch them, serve this folder and open `index.html`:
+
+```bash
+cd promo && python3 -m http.server 8080 --bind 0.0.0.0   # then open /index.html
+```
+
+`index.html` plays all three cuts with their poster stills and the storyboard.
 
 ## Story beats
 
@@ -34,10 +47,11 @@ All three are 30.4 s, 30 fps, H.264 + `+faststart` (safe to upload anywhere).
 
 ```bash
 pip install pillow numpy imageio-ffmpeg
-python render.py --aspect all      # writes out/*.mp4
+python render.py --aspect all      # writes film/*.mp4 (about 7 min on 2 cores)
 python render.py --check           # verify caption/device layout safety
-python render.py --stills          # contact sheets in out/stills/
+python render.py --stills          # contact sheets in film/stills/
 python render.py --aspect vertical --range 0:6   # quick partial render
+python tools/posters.py            # poster stills for every aspect
 ```
 
 `--check` renders a sparse set of times across the timeline and asserts that the
@@ -57,6 +71,17 @@ caption block, frame edges and the phone mockup never collide or over-crop.
   glows, drop shadows, paper grain, vignette) with bounded caches so animated
   sizes don't grow the process.
 - `tools/build_emoji.py` — bakes the emoji sprites used by the UI into PNGs.
+
+## Notes for whoever picks this up next
+
+- The mp4s and stills are build output: `promo/film/` is gitignored on purpose so
+  a few dozen megabytes of video never lands in the web app's history. The whole
+  film is 600 lines of Python, so it is cheaper to regenerate than to store.
+- `--check` is the guardrail: it walks the timeline and fails loudly if a caption
+  collides with the device, the device over-crops, or anything drifts outside the
+  frame. Run it after touching timings, copy or layouts.
+- Frames render in worker processes and pipe straight into ffmpeg, so memory stays
+  flat even on a small box.
 
 ## Assets
 

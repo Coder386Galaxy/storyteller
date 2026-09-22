@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Storyteller CYOP — promo film</title>
+<!-- Viewer page for the rendered ad. Serve promo/ and open this file:
+     python3 -m http.server 8080 --bind 0.0.0.0   (from promo/) -->
+<style>
+  :root{--ink:#2c1810;--parch:#f4ecd8;--gold:#b8860b;--maroon:#8b2500;--brown:#6b4c3b}
+  *{box-sizing:border-box;margin:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:linear-gradient(160deg,#f8f1df,#e7d9be);
+       color:var(--ink);min-height:100vh;padding:28px 20px 60px;line-height:1.6}
+  .wrap{max-width:1180px;margin:0 auto}
+  header{display:flex;align-items:center;gap:14px;border-bottom:3px solid var(--gold);padding-bottom:14px;margin-bottom:8px}
+  header img{width:52px;height:52px;border-radius:11px;box-shadow:0 3px 10px rgba(44,24,16,.3)}
+  h1{font-size:1.6rem;color:var(--maroon);letter-spacing:.5px}
+  h1 small{display:block;font-size:.72rem;font-weight:400;font-style:italic;color:var(--brown);letter-spacing:.28em}
+  p.sub{color:var(--brown);font-style:italic;margin:14px 0 24px}
+  .grid{display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .card{background:#faf3e3;border:1px solid #d4c4a8;border-radius:12px;padding:16px;box-shadow:0 3px 10px rgba(44,24,16,.1)}
+  .card h2{font-size:1.05rem;color:var(--maroon);margin-bottom:4px}
+  .card .meta{font-size:.8rem;color:var(--brown);margin-bottom:10px}
+  video{width:100%;border-radius:9px;background:#1a1109;display:block}
+  .vert video{max-height:70vh;margin:0 auto}
+  .row{display:flex;gap:10px;align-items:center;font-size:.85rem;margin-top:10px;flex-wrap:wrap}
+  .pill{background:var(--gold);color:var(--ink);font-weight:700;font-size:.72rem;padding:3px 10px;border-radius:11px}
+  a{color:var(--maroon)}
+  .board{margin-top:26px}
+  .board img{width:100%;border-radius:12px;border:1px solid #d4c4a8;box-shadow:0 4px 14px rgba(44,24,16,.14)}
+  footer{margin-top:26px;font-size:.82rem;color:var(--brown);font-style:italic}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="assets/icon-512.png" alt="Storyteller CYOP icon">
+    <h1>Storyteller CYOP<small>PROMO FILM · 30s</small></h1>
+  </header>
+  <p class="sub">Three ready-to-post cuts of the same film. Every pixel is rendered from code, straight off the app's own design.</p>
+  <div class="grid">
+    <div class="card vert">
+      <h2>Vertical 9:16</h2>
+      <div class="meta">Reels · Shorts · TikTok · Stories — 1080×1920 · 14.7 MB</div>
+      <video src="film/storyteller-cyop-promo-vertical.mp4" controls playsinline preload="metadata"></video>
+    </div>
+    <div class="card">
+      <h2>Square 1:1</h2>
+      <div class="meta">Feed posts · carousels — 1080×1080 · 8.4 MB</div>
+      <video src="film/storyteller-cyop-promo-square.mp4" controls playsinline preload="metadata"></video>
+    </div>
+    <div class="card">
+      <h2>Landscape 16:9</h2>
+      <div class="meta">YouTube · website hero — 1920×1080 · 14.7 MB</div>
+      <video src="film/storyteller-cyop-promo-landscape.mp4" controls playsinline preload="metadata"></video>
+    </div>
+  </div>
+  <div class="row">
+    <span class="pill">30.4s</span><span class="pill">30 fps</span><span class="pill">H.264 + faststart</span>
+    <span><a href="film/storyboard.png">storyboard</a></span>
+    <span><a href="film/posters/">poster stills</a></span>
+  </div>
+  <div class="board">
+    <img src="film/storyboard.png" alt="Storyboard of the promo film">
+  </div>
+  <footer>Regenerate with <code>python promo/render.py --aspect all</code> — see <code>promo/README.md</code>.</footer>
+</div>
+</body>
+</html>
