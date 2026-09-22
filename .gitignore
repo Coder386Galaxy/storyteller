@@ -6,3 +6,7 @@ __pycache__/
 .idea/
 node_modules/
 *.log
+
+# promo film renders (regenerate with `python promo/render.py --aspect all`;
+# the mp4s and poster pngs are build outputs, keep them out of git)
+promo/film/
