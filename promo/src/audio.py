@@ -7,11 +7,21 @@ written, taps on the choices, a flourish on the victory, a ding on publish.
 Everything is synthesised from scratch with numpy — no sample libraries — so the
 audio is reproducible alongside the video, and the cue list reads against the
 same SCENES timeline that drives the picture.
+
+Voicing notes (these matter for how it sounds):
+  * Struck tones use *harmonic* partials with piano-like inharmonicity
+    (f_n = n*f*sqrt(1 + B*n^2), B ~ 3e-4) and per-partial damping, so a harp
+    note rings like a string rather than clanging like a gong.
+  * High partials are rolled off instead of being kept at equal amplitude, and
+    the whole mix is gently tilted down above ~7 kHz.
+  * Noise effects are band-limited per segment with overlapping FFT windows
+    rather than a high-Q resonator, so whooshes never whistle.
+  * Nothing is soft-clipped: peaks are held with an envelope follower, which
+    avoids the fuzzy distortion tanh() limiting adds on loud stacks.
 """
 from __future__ import annotations
 
 import os
-import struct
 import wave
 
 import numpy as np
@@ -31,113 +41,170 @@ def _t(dur):
     return np.arange(_n(dur)) / SR
 
 
-def bell(freq, dur=1.4, amp=0.2, bright=1.0, detune=0.0):
-    """Struck bell/harp tone: a few inharmonic partials under an exp decay."""
+def _fft_lowpass(x, cutoff, order=2.0):
+    """Zero-phase low-pass via a smooth spectral mask (no filter ringing to
+    speak of, and no per-sample Python loop)."""
+    n = len(x)
+    if n < 8:
+        return x
+    spec = np.fft.rfft(x)
+    f = np.fft.rfftfreq(n, 1 / SR)
+    mask = 1.0 / np.sqrt(1.0 + (f / max(1.0, cutoff)) ** (2 * order))
+    return np.fft.irfft(spec * mask, n)
+
+
+def _fft_highshelf_cut(x, corner=7000.0, gain_db=-3.0):
+    n = len(x)
+    spec = np.fft.rfft(x)
+    f = np.fft.rfftfreq(n, 1 / SR)
+    amt = 10 ** (gain_db / 20.0)
+    w = 0.5 * (1 + np.tanh((f - corner) / (corner * 0.6)))
+    return np.fft.irfft(spec * (1 + (amt - 1) * w), n)
+
+
+def _fft_lowshelf(x, corner=220.0, gain_db=3.0):
+    n = len(x)
+    spec = np.fft.rfft(x)
+    f = np.fft.rfftfreq(n, 1 / SR)
+    amt = 10 ** (gain_db / 20.0)
+    w = 0.5 * (1 - np.tanh((f - corner) / (corner * 0.7)))
+    return np.fft.irfft(spec * (1 + (amt - 1) * w), n)
+
+
+def taken(buf, sig, at):
+    """Add sig into buf at sample offset at, clipped to the buffer length."""
+    at = int(round(at))
+    if at >= len(buf) or at < 0:
+        return
+    m = min(len(sig), len(buf) - at)
+    if m > 0:
+        buf[at:at + m] += sig[:m]
+
+
+def harp(freq, dur=1.4, amp=0.2, bright=0.55, B=3.2e-4):
+    """Struck string: harmonic partials with light inharmonicity and damping.
+
+    bright ~0.5 is a soft harp/pluck, 1.0 a brighter bell.
+    """
     t = _t(dur)
     out = np.zeros_like(t)
-    partials = ((1.0, 1.00), (2.01, 0.42 * bright), (2.99, 0.20 * bright),
-                (4.21, 0.10 * bright), (5.43, 0.05 * bright))
-    for mult, g in partials:
-        f = freq * mult * (1 + detune)
-        out += g * np.sin(2 * np.pi * f * t + np.random.rand() * 0.4)
-    env = np.exp(-t * (2.6 + 1.6 / max(dur, 0.2))) * (1 - np.exp(-t * 320))
-    tail = min(len(t), _n(0.035))
-    env[:tail] *= np.linspace(0, 1, tail)
-    return out * env * amp
+    for part in range(1, 8):
+        f = freq * part * np.sqrt(1.0 + B * part * part)
+        if f > SR * 0.45:
+            break
+        a = bright ** (part - 1) / (part ** 1.35)
+        # higher partials decay faster, as on a real string
+        damp = 2.4 + 0.9 * (part - 1) + 1.4 / max(dur, 0.25)
+        out += a * np.sin(2 * np.pi * f * t) * np.exp(-t * damp)
+    # soft attack transient, then a clean tail
+    env = 1 - np.exp(-t * 420)
+    out *= env
+    tail = min(len(out), _n(0.06))
+    if tail:
+        out[-tail:] *= np.linspace(1, 0, tail) ** 1.4
+    return out / 2.1 * amp
 
 
-def pluck(freq, dur=1.1, amp=0.16):
-    """Softer, rounder version of bell() for the arpeggio bed."""
-    return bell(freq, dur, amp, bright=0.55)
+def piano(freq, dur=2.0, amp=0.15):
+    return harp(freq, dur, amp, bright=0.62, B=4.5e-4)
 
 
-def pad(freqs, dur, amp=0.07, attack=0.6, release=0.8):
-    """Breathy sustained chord: detuned saws through a one-pole low-pass."""
+def pad(freqs, dur, amp=0.07, attack=0.7, release=0.9):
+    """Breathy sustained chord: three gently detuned voices per note, harmonic
+    spectrum rolled off, then low-passed. Warm rather than buzzy."""
     t = _t(dur)
     out = np.zeros_like(t)
     for f in freqs:
-        for d in (-0.0035, 0.0, 0.0042):
-            partial = np.zeros_like(t)
-            for h in (1, 2, 3, 4):
-                # naive saw via harmonics, rolled off so the pad stays soft
-                partial += np.sin(2 * np.pi * f * h * (1 + d) * t) / (h ** 1.9)
-            out += partial
+        for k, cents in enumerate((-6.0, 0.0, 5.0)):
+            # slow chorus drift, deterministic but decorrelated per voice
+            lfo = 1 + 0.0009 * np.sin(2 * np.pi * (0.13 + 0.05 * k) * t + k * 2.1)
+            fd = f * (2 ** (cents / 1200.0)) * lfo
+            ph = 2 * np.pi * np.cumsum(fd) / SR
+            voice = np.zeros_like(t)
+            for part in range(1, 7):
+                voice += np.sin(part * ph + k * 0.7) / (part ** 1.75)
+            out += voice
     out /= max(1, len(freqs) * 3)
-    # one-pole low-pass, then remove the DC the filter introduces
-    a = 0.055
-    y = np.empty_like(out)
-    acc = 0.0
-    for i in range(len(out)):
-        acc += a * (out[i] - acc)
-        y[i] = acc
-    y = y - y.mean()
+    out = _fft_lowpass(out, 1900.0, order=2.4)
+    out -= out.mean()
     env = np.ones_like(t)
-    ai, ri = _n(attack), _n(release)
-    ai, ri = min(ai, len(t) // 2), min(ri, len(t) // 2)
-    env[:ai] = np.linspace(0, 1, ai) ** 1.6
-    env[-ri:] *= np.linspace(1, 0, ri) ** 1.3
-    return y * env * amp
+    ai, ri = min(_n(attack), len(t) // 2), min(_n(release), len(t) // 2)
+    if ai:
+        env[:ai] = np.linspace(0, 1, ai) ** 1.5
+    if ri:
+        env[-ri:] *= np.linspace(1, 0, ri) ** 1.25
+    return out * env * amp * 6.0
 
 
-def noise_sweep(dur, f0, f1, amp=0.12, q=1.6):
-    """Band-passed noise swept from f0 to f1 — whooshes and page turns."""
+def air(dur, f0, f1, amp=0.10, width=1.1, chunks=40):
+    """Band-swept noise built from overlapping FFT-filtered segments.
+
+    A single time-varying resonator (the obvious approach) rings at high Q and
+    whistles; segmenting keeps the band smooth and artefact-free.
+    """
+    n = _n(dur)
+    src = np.random.randn(n + SR // 10)
+    out = np.zeros(n)
+    win = np.hanning(n // chunks * 2 + 1)[None, :].ravel()
+    step = max(1, (n - len(win)) // max(1, chunks - 1))
+    freqs = np.geomspace(max(60.0, f0), max(60.0, f1), chunks)
+    for i, fc in enumerate(freqs):
+        s = i * step
+        seg = src[s:s + len(win)]
+        if len(seg) < len(win):
+            seg = np.pad(seg, (0, len(win) - len(seg)))
+        w = win[: len(seg)]
+        spec = np.fft.rfft(seg * w)
+        f = np.fft.rfftfreq(len(seg), 1 / SR)
+        band = np.exp(-0.5 * ((np.log2(np.maximum(f, 20) / fc)) / (width * 0.6)) ** 2)
+        cut = 1.0 / np.sqrt(1.0 + (f / (fc * 4.5)) ** 4)
+        shaped = np.fft.irfft(spec * band * cut, len(seg))
+        taken(out, shaped * w, s)
+    return out * amp * 3.2 / max(0.2, np.abs(out).max() / 0.35)
+
+
+def click(amp=0.14):
+    """UI tap: a short, low-passed tick — no bright fizz."""
+    t = _t(0.06)
+    body = _fft_lowpass(np.random.randn(len(t)), 3200.0, 1.6)
+    body *= np.exp(-t * 150)
+    body += np.sin(2 * np.pi * 1500 * t) * np.exp(-t * 120) * 0.25
+    return body / max(1e-9, np.abs(body).max()) * amp
+
+
+def pop(dur=0.24, f=660.0, amp=0.12):
+    """A row or panel appearing: soft marimba-ish blip."""
+    v = harp(f, dur, amp, bright=0.42)
     t = _t(dur)
-    src = np.random.randn(len(t))
-    out = np.zeros_like(src)
-    # sweeping two-pole resonator implemented as a time-varying biquad
-    y1 = y2 = 0.0
-    freqs = np.geomspace(max(60.0, f0), max(60.0, f1), len(t))
-    for i, f in enumerate(freqs):
-        w = 2 * np.pi * f / SR
-        r = max(0.90, 1 - (w / (2 * q)))
-        b0 = (1 - r) * np.sqrt(1 - r * r)
-        y = b0 * src[i] + 2 * r * np.cos(w) * y1 - r * r * y2
-        y2, y1 = y1, y
-        out[i] = y
-    env = np.sin(np.linspace(0, np.pi, len(t))) ** 1.4
-    return out * env * amp * 6
+    return v * (1 - np.exp(-t * 90))
 
 
-def click(amp=0.16, f=2100.0):
-    """UI tap: a tiny filtered noise tick plus a soft body."""
-    t = _t(0.05)
-    tick = np.random.randn(len(t)) * np.exp(-t * 260) * 0.5
-    body = np.sin(2 * np.pi * f * t) * np.exp(-t * 90)
-    return (tick + body * 0.5) * amp
-
-
-def pop(dur=0.22, f=660.0, amp=0.14):
-    """Row/item appearing."""
-    t = _t(dur)
-    env = np.exp(-t * 22) * (1 - np.exp(-t * 500))
-    return np.sin(2 * np.pi * f * t) * env * amp
-
-
-def ding(freqs=(1046.5, 1568.0), dur=1.6, amp=0.16):
+def ding(freqs=(1046.5, 1568.0), dur=1.7, amp=0.15):
     out = np.zeros(_n(dur))
     for i, f in enumerate(freqs):
-        take(out, bell(f, dur, amp * (1.0 if i == 0 else 0.7)), 0)
+        taken(out, harp(f, dur, amp * (1.0 if i == 0 else 0.62), bright=0.9), 0)
     return out
 
 
-def flourish(base=587.33, notes=(0, 4, 7, 12, 16), step=0.085, dur=1.9, amp=0.17):
-    """Victory: a rising arpeggio with a ringing top note."""
+def flourish(base=587.33, notes=(0, 4, 7, 12, 16), step=0.085, dur=1.9, amp=0.16):
+    """Victory: rising harp arpeggio with a ringing top note."""
     total = step * len(notes) + dur
     out = np.zeros(_n(total))
     for i, semi in enumerate(notes):
         f = base * (2 ** (semi / 12))
-        v = bell(f, dur, amp * (0.75 + 0.05 * i), bright=0.9)
-        take(out, v, _n(i * step))
+        taken(out, harp(f, dur, amp * (0.78 + 0.05 * i), bright=0.7), _n(i * step))
     return out
 
 
-def thud(f=68.0, dur=1.5, amp=0.30):
-    """Low soft boom for the end card."""
+def thud(f=58.0, dur=1.6, amp=0.22):
+    """Low, soft boom for the end card — body above 50 Hz so small speakers
+    stay clean."""
     t = _t(dur)
-    env = np.exp(-t * 3.4) * (1 - np.exp(-t * 90))
-    body = np.sin(2 * np.pi * f * t) * env
-    sub = np.sin(2 * np.pi * f * 0.5 * t) * env * 0.6
-    return (body + sub) * amp
+    env = np.exp(-t * 3.6) * (1 - np.exp(-t * 70))
+    body = np.sin(2 * np.pi * f * t) + 0.35 * np.sin(2 * np.pi * f * 2 * t)
+    body = _fft_lowpass(body, 220.0, 2.0)
+    rumble = _fft_lowpass(np.random.randn(len(t)), 180.0, 1.5) * np.exp(-t * 9) * 0.25
+    return (body * env + rumble) * amp
 
 
 # ---------------------------------------------------------------------------
@@ -145,11 +212,10 @@ def thud(f=68.0, dur=1.5, amp=0.30):
 # ---------------------------------------------------------------------------
 D3, E3, Fs3, G3, A3, B3 = 146.83, 164.81, 185.00, 196.00, 220.00, 246.94
 D4, E4, Fs4, G4, A4, B4 = 293.66, 329.63, 369.99, 392.00, 440.00, 493.88
-Cs5, D5, E5, Fs5, A5, B5, D6, E6, Fs6, A6 = (554.37, 587.33, 659.26, 739.99, 880.00,
-                                            987.77, 1174.66, 1318.51, 1479.98, 1760.00)
+Cs5, D5, E5, Fs5, A5, B5, D6, E6 = 554.37, 587.33, 659.26, 739.99, 880.00, 987.77, 1174.66, 1318.51
 
 BAR = 3.8
-# D  A/C#  Bm  G  |  D  A  Bm  G -> A (lift, resolve home on the end card)
+# D  A/C#  Bm  G  |  D  A  Bm  G->A  (lift into the victory, home on the card)
 PROGRESSION = [
     ([D3, A3, D4, Fs4], [D4, Fs4, A4, D5, A4, Fs4]),
     ([A3, E4, A4, Cs5], [A4, Cs5, E5, A4, E5, Cs5]),
@@ -162,17 +228,8 @@ PROGRESSION = [
 ]
 
 # energy per scene, so the bed breathes with the edit
-ENERGY = [(0.0, 0.0, 0.55), (0.6, 3.2, 0.72), (3.2, 6.8, 0.80), (6.8, 11.4, 0.68),
-          (11.4, 15.4, 0.74), (15.4, 21.8, 0.95), (21.8, 25.8, 0.80), (25.8, 30.4, 1.0)]
-
-
-def take(buf, sig, at):
-    """Add sig into buf at sample offset at, clipped to the buffer length."""
-    if at >= len(buf) or at < 0:
-        return
-    m = min(len(sig), len(buf) - at)
-    if m > 0:
-        buf[at:at + m] += sig[:m]
+ENERGY = [(0.0, 0.0, 0.52), (0.6, 3.2, 0.70), (3.2, 6.8, 0.78), (6.8, 11.4, 0.64),
+          (11.4, 15.4, 0.72), (15.4, 21.8, 0.94), (21.8, 25.8, 0.78), (25.8, 30.4, 1.0)]
 
 
 def energy_env(n):
@@ -183,7 +240,7 @@ def energy_env(n):
         if i1 <= i0:
             continue
         env[i0:i1] = lvl
-        ramp = min(_n(0.6), (i1 - i0) // 2)
+        ramp = min(_n(0.7), (i1 - i0) // 2)
         if ramp:
             env[i0:i0 + ramp] = np.linspace(level, lvl, ramp)
         level = lvl
@@ -196,22 +253,23 @@ def music(n):
         start = _n(bar * BAR)
         if start >= n:
             break
-        # pad
-        p = pad(chord, BAR * 1.06, amp=0.085)
-        take(bed, p, start)
-        # bass root
-        b = bell(chord[0] / 2, dur=1.9, amp=0.16, bright=0.25)
-        take(bed, b, start)
-        # harp arpeggio, 8th notes with a little humanisation
+        taken(bed, pad(chord, BAR * 1.08, amp=0.075), start)
+        taken(bed, piano(chord[0] / 2, dur=2.1, amp=0.20), start)
+        # a quiet sub-octave root gives the bed weight on phone speakers too
+        root = chord[0] / 2
+        t = _t(1.9)
+        sub = (np.sin(2 * np.pi * root * t) * 0.7 + np.sin(2 * np.pi * root * 2 * t) * 0.3)
+        sub *= np.exp(-t * 2.2) * (1 - np.exp(-t * 60)) * 0.085
+        taken(bed, sub, start)
         step = BAR / 8
         for i in range(8):
-            s = _n(bar * BAR + i * step + (np.random.rand() - 0.5) * 0.012)
+            s = _n(bar * BAR + i * step + (np.random.rand() - 0.5) * 0.008)
             if s >= n:
                 break
-            f = arp[i % len(arp)]
-            v = 0.135 if i % 2 == 0 else 0.10
-            note = pluck(f, dur=1.35, amp=v * (0.9 + 0.2 * np.random.rand()))
-            take(bed, note, s)
+            note = harp(arp[i % len(arp)], dur=1.5,
+                        amp=(0.125 if i % 2 == 0 else 0.092) * (0.93 + 0.14 * np.random.rand()),
+                        bright=0.52)
+            taken(bed, note, s)
     return bed * energy_env(n)
 
 
@@ -224,99 +282,118 @@ def cues(n):
     def put(sig, at, gain=1.0):
         if at >= n / SR or at < 0:
             return
-        s = _n(at)
-        m = min(len(sig), n - s)
-        if m > 0:
-            sfx[s:s + m] += sig[:m] * gain
+        taken(sfx, sig * gain, _n(at))
 
-    # hook: paper whoosh + a sparkle per word, flourish under the gold rule
-    put(noise_sweep(0.55, 1900, 300, 0.10), 0.16)
-    put(bell(D5, 1.5, 0.11), 0.52)
-    put(bell(Fs5, 1.5, 0.11), 1.22)
-    put(bell(A5, 1.9, 0.13), 1.90)
-    put(noise_sweep(0.45, 700, 2600, 0.06), 2.55)
+    # hook: soft page rustle, a chime per word, a shimmer under the gold rule
+    put(air(0.5, 1500, 400, 0.085), 0.16)
+    put(harp(D5, 1.5, 0.10, bright=0.6), 0.52)
+    put(harp(Fs5, 1.5, 0.10, bright=0.6), 1.22)
+    put(harp(A5, 1.9, 0.12, bright=0.65), 1.90)
+    put(air(0.42, 600, 2200, 0.05), 2.55)
 
-    # hero: button highlight, tap, then the AI button nudge
-    put(noise_sweep(0.5, 2600, 700, 0.09), 3.20)
-    put(pop(0.3, 784.0, 0.12), 4.52)
-    put(click(0.15), 4.95)
-    put(pop(0.3, 880.0, 0.11), 6.18)
+    # hero: swipe in, button highlight, tap, AI-button nudge
+    put(air(0.45, 2200, 700, 0.08), 3.20)
+    put(pop(0.3, 784.0, 0.10), 4.52)
+    put(click(0.13), 4.95)
+    put(pop(0.3, 880.0, 0.10), 6.18)
 
     # build: whoosh in, typing ticks, the three choice rows landing
-    put(noise_sweep(0.5, 2400, 600, 0.09), 6.80)
+    put(air(0.45, 2000, 600, 0.08), 6.80)
     tt = 7.05
     while tt < 9.0:
-        put(click(0.05 + 0.03 * np.random.rand(), 1500 + 500 * np.random.rand()), tt)
+        put(click(0.045 + 0.025 * np.random.rand()), tt)
         tt += 0.085 + np.random.rand() * 0.045
     for i, f in enumerate((D5, Fs5, A5)):
-        put(pop(0.26, f, 0.11), 9.00 + i * 0.17)
-    put(click(0.14), 10.55)
+        put(pop(0.26, f, 0.10), 9.00 + i * 0.17)
+    put(click(0.12), 10.55)
 
-    # AI convert: whoosh in, processing ticks, success ding
-    put(noise_sweep(0.5, 2200, 700, 0.09), 11.40)
+    # AI convert: whoosh in, processing ticks, a warm double ding
+    put(air(0.45, 1900, 650, 0.08), 11.40)
     tt = 12.30
     while tt < 14.00:
-        put(click(0.035, 1200 + 900 * np.random.rand()), tt)
+        put(click(0.03), tt)
         tt += 0.16 + np.random.rand() * 0.1
-    put(ding((D5, A5), 1.8, 0.15), 14.22)
+    put(ding((D5, A5), 1.9, 0.13), 14.22)
 
     # play: taps on the choices, page turn, victory flourish
-    put(noise_sweep(0.5, 2400, 700, 0.09), 15.40)
-    put(pop(0.3, 660.0, 0.10), 15.72)
-    put(click(0.17), 17.80)
-    put(noise_sweep(0.42, 900, 3000, 0.09), 18.48)
-    put(click(0.15), 19.60)
-    put(thud(74.0, 1.2, 0.14), 20.10)
-    put(flourish(D5, step=0.085, dur=2.0, amp=0.16), 20.15)
-    put(bell(D6, 2.2, 0.10), 20.60)
+    put(air(0.45, 2000, 650, 0.08), 15.40)
+    put(pop(0.3, 660.0, 0.09), 15.72)
+    put(click(0.14), 17.80)
+    put(air(0.4, 800, 2400, 0.075), 18.48)
+    put(click(0.13), 19.60)
+    put(thud(62.0, 1.2, 0.13), 20.10)
+    put(flourish(D5, step=0.085, dur=2.0, amp=0.15), 20.15)
+    put(harp(D6, 2.2, 0.09, bright=0.75), 20.60)
 
-    # library: publish click + ding, share sheet, copy toast
-    put(noise_sweep(0.5, 2300, 650, 0.09), 21.80)
-    put(click(0.15), 22.42)
-    put(ding((A5, D6), 1.7, 0.15), 22.96)
-    put(noise_sweep(0.5, 500, 1800, 0.10), 23.82)
-    put(click(0.14), 25.02)
-    put(bell(D6, 1.4, 0.10), 25.18)
+    # library: publish click + ding, share sheet, copy chime
+    put(air(0.45, 1900, 600, 0.08), 21.80)
+    put(click(0.13), 22.42)
+    put(ding((A5, D6), 1.8, 0.13), 22.96)
+    put(air(0.45, 500, 1500, 0.085), 23.82)
+    put(click(0.12), 25.02)
+    put(harp(D6, 1.4, 0.09, bright=0.8), 25.18)
 
     # end card: warm boom, CTA pop, URL chime, sparkle, resolve
-    put(thud(62.0, 2.2, 0.26), 25.82)
-    put(bell(D4, 2.4, 0.12), 25.86)
-    put(pop(0.34, 523.25, 0.13), 27.48)
-    put(ding((D5, Fs5, A5), 2.4, 0.13), 27.94)
-    put(bell(A5, 1.6, 0.07), 28.42)
-    put(bell(D6, 2.6, 0.08), 29.10)
+    put(thud(56.0, 2.2, 0.22), 25.82)
+    put(harp(D4, 2.4, 0.11, bright=0.5), 25.86)
+    put(pop(0.34, 523.25, 0.11), 27.48)
+    put(ding((D5, Fs5, A5), 2.4, 0.11), 27.94)
+    put(harp(A5, 1.6, 0.06, bright=0.7), 28.42)
+    put(harp(D6, 2.6, 0.07, bright=0.7), 29.10)
     return sfx
 
 
 # ---------------------------------------------------------------------------
 # mix
 # ---------------------------------------------------------------------------
+def _hold_peaks(x, ceiling=0.89, attack=0.004, release=0.16):
+    """Envelope-follower peak holding — transparent, unlike soft clipping."""
+    env = np.abs(x)
+    a = np.exp(-1 / (attack * SR))
+    r = np.exp(-1 / (release * SR))
+    out = np.empty_like(env)
+    cur = 0.0
+    for i in range(len(env)):
+        target = env[i]
+        cur = target + (cur - target) * (a if target > cur else r)
+        out[i] = cur
+    gain = np.ones_like(x)
+    hot = out > ceiling
+    gain[hot] = ceiling / out[hot]
+    # smooth the gain curve so gain changes are inaudible
+    g = _fft_lowpass(gain, 120.0, 1.5)
+    return x * g
+
+
 def build(duration=TOTAL):
     n = _n(duration)
     np.random.seed(20260922)
-    bed = music(n)
-    fx = cues(n)
-    mix = bed * 1.0 + fx * 1.15
-    # gentle glue: soft-knee limiter, then trims
-    mix = np.tanh(mix * 1.15) * 0.86
-    # fades
-    fi, fo = _n(0.45), _n(0.9)
+    mix = music(n) * 1.0 + cues(n) * 1.1
+    mix = _fft_highshelf_cut(mix, 6500.0, -2.5)      # take the edge off
+    mix = _fft_lowpass(mix, 14000.0, 1.2)            # and the fizzy top
+    mix = _fft_lowshelf(mix, 230.0, 3.0)             # body back in the low end
+    mix = _hold_peaks(mix, 0.9)
+    fi, fo = _n(0.45), _n(1.0)
     mix[:fi] *= np.linspace(0, 1, fi) ** 1.2
     mix[-fo:] *= np.linspace(1, 0, fo) ** 1.25
-    peak = float(np.max(np.abs(mix))) or 1.0
-    mix = mix / peak * 0.89
-    # stereo: widen the bell/pluck content slightly, keep lows centred
-    left = mix.copy()
-    right = mix.copy()
-    delay = _n(0.011)
-    right[delay:] = right[:-delay] * 0.985
-    right[:delay] = 0
-    side = (right - left) * 0.16
-    left = mix - side
-    right = mix + side
+    # stereo: slight width on the upper material, bass kept centred
+    mono = _fft_lowpass(mix, 240.0, 1.6)
+    top = mix - mono
+    d = _n(0.012)
+    wide = np.concatenate([np.zeros(d), top[:-d]]) * 0.5
+    left = mono + top - wide * 0.16
+    right = mono + top + wide * 0.16
     stereo = np.stack([left, right], axis=1)
-    # safety limiter after widening (the side signal can push the true peak back up)
-    stereo = np.tanh(stereo * 1.05) / np.tanh(1.05) * 0.9
+    # normalise the finished mix to a broadcast-ish level: loud enough for a
+    # feed, with headroom left for the AAC encode
+    peak = float(np.max(np.abs(stereo))) or 1.0
+    stereo *= min(0.95 / peak, 3.2)
+    rms = float(np.sqrt((stereo ** 2).mean()))
+    if rms > 0:
+        stereo *= min(1.0, 0.145 / rms)
+    peak = float(np.max(np.abs(stereo))) or 1.0
+    if peak > 0.95:
+        stereo *= 0.95 / peak
     return stereo
 
 

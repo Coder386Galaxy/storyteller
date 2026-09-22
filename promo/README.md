@@ -70,9 +70,22 @@ python src/audio.py                     # film/audio/promo-soundtrack.wav
 python src/audio.py /path/out.wav       # anywhere else
 ```
 
-Everything is synthesised from scratch with numpy (`src/audio.py`) — bells, pads,
-swept noise whooshes, ticks, booms — so the sound is reproducible alongside the
-picture and needs no sample library. The cue list in `cues()` is written against
+Everything is synthesised from scratch with numpy (`src/audio.py`) — harps, pads,
+band-swept noise whooshes, ticks, booms — so the sound is reproducible alongside
+the picture and needs no sample library.
+
+Voicing rules that keep it sounding clean (worth knowing before editing):
+
+- struck tones use **harmonic** partials with light piano-like inharmonicity
+  (`f_n = n·f·√(1 + B·n²)`, B ≈ 3e-4) and per-partial damping — the earlier
+  gamelan-style partials (2.01×, 2.99×, 4.21×) were what sounded odd
+- high partials are rolled off and the mix is tilted down above ~6.5 kHz, so
+  nothing is fizzy or metallic
+- noise effects are band-limited **per overlapping FFT segment** instead of a
+  high-Q resonator, which removes the whistle the first version had
+- levels are held with an envelope-follower peak limiter and normalised to
+  −16.9 dB mean / −0.4 dB peak, leaving headroom for the AAC encode (no soft
+  clipping, which would add fuzz on loud stacks) The cue list in `cues()` is written against
 the same times as `SCENES`, so picture and sound move together. `render.py` muxes
 the score in as AAC 192 kbps automatically when it encodes each cut.
 
