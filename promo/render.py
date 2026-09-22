@@ -491,14 +491,41 @@ def scene_cta(im, lay, tl, t):
     ink.putalpha(Image.new("L", (W, H), int(255 * dark)))
     im.alpha_composite(ink)
     cx = (W / 2) if not wide else lay["text_zone"][0] + 300
-    cy = H * 0.30
-    paste_c(im, radial_glow(int(W * 1.5), (255, 202, 112), 2.1, int(125 * dark)), cx, cy + 60)
-    # logo
-    lp = seg(tl, 0.25, 1.0)
+    paste_c(im, radial_glow(int(W * 1.5), (255, 202, 112), 2.1, int(125 * dark)), cx, H * 0.36)
     logo_size = int(min(W, H) * 0.20)
+    # --- end-card stack -----------------------------------------------------
+    # The card is laid out as a measured stack and then centred, so it can never
+    # run off the bottom of a short frame (this is what used to clip the trust
+    # row on the square cut).
+    S = logo_size                                     # logo tile
+    # everything below is laid out inside this column, fitted rather than guessed,
+    # so nothing can spill off the frame edge on the wide cuts
+    col_w = min(lay["text_zone"][2] if wide else W - 128, 2 * min(cx, W - cx) - 140)
+    wsize = fit_font("STORYTELLER", "display", "black", col_w * 0.98,
+                     int(min(W * 0.105, H * 0.105))).size
+    sub_size = 42 if not wide else 38
+    btn_h = int(min(max(H * 0.062, 78), 132))
+    chip_h = int(H * 0.048)
+    icon_s = int(min(W, H) * 0.052)
+    g_logo = S * 0.28
+    g_word = wsize * 0.28
+    g_btn = H * 0.030
+    g_chip = H * 0.024
+    g_trust = H * 0.012
+    g_icons = H * 0.022
+    trust_size = max(22, int(H * 0.0185))
+    sub_txt = "WRITE YOUR OWN ADVENTURE"
+    sub_fit = fit_font(sub_txt, "garamond", "semibold", col_w, sub_size)
+    stack = (S + g_logo + wsize * 1.02 + g_word + sub_fit.size * 1.25 + g_btn + btn_h
+             + g_chip + chip_h + g_trust + trust_size * 1.5 + g_icons + icon_s)
+    y0 = clamp(H * 0.5 - stack / 2, H * 0.05, max(H * 0.05, H - stack - H * 0.045))
+    logo_cy = y0 + S / 2
+    y = y0 + S + g_logo
+
+    lp = seg(tl, 0.25, 1.0)
     if lp > 0:
         e = ease_out_back(lp, 1.2)
-        size = max(8, int(logo_size * e))
+        size = max(8, int(S * e))
         tile = rr(size, size, int(size * 0.22), fill=CREAM, outline=GOLD,
                   ow=max(2, int(size * 0.022)))
         inner = int(size * 0.84)
@@ -507,39 +534,37 @@ def scene_cta(im, lay, tl, t):
         tile.alpha_composite(lg, (int(size * 0.08), int(size * 0.08)))
         burst = radial_glow(int(size * 3.4), (255, 214, 140), 2.4,
                             int(170 * (1 - clamp(lp * 1.7 - 0.5))))
-        paste_c(im, burst, cx, cy)
-        paste_c(im, tile, cx, cy)
+        paste_c(im, burst, cx, logo_cy)
+        paste_c(im, tile, cx, logo_cy)
         ring_p = ease_out_cubic(seg(tl, 0.4, 1.6))
         if ring_p < 1:
             ring = circle(int(size * (1.4 + 1.0 * ring_p)), fill=None,
                           outline=GOLD_LT + (int(150 * (1 - ring_p)),), ow=4)
-            paste_c(im, ring, cx, cy)
-    y = cy + logo_size * 0.78
-    # wordmark
+            paste_c(im, ring, cx, logo_cy)
+
     wp = seg(tl, 0.8, 1.45)
     if wp > 0:
-        wsize = int(min(W * 0.105, H * 0.105)) if not wide else int(W * 0.062)
-        y += wsize * 0.6
         reveal_line(im, lay, cx, y, "STORYTELLER", "display", "black", wsize, PARCH, wp,
                     spacing=wsize * 0.05, align="center", width=W)
         y += wsize * 1.02
-        sub = font("garamond", 42 if not wide else 38, "semibold")
+        sub = font("garamond", sub_fit.size, "semibold")
         a = int(255 * ease_out_cubic(seg(tl, 1.15, 1.75)))
         if a > 4:
-            txt = "WRITE YOUR OWN ADVENTURE"
-            tw = sum(sub.getlength(c) for c in txt) + 7 * (len(txt) - 1)
-            text_spaced(ImageDraw.Draw(im), (cx - tw / 2, y + 8), txt, sub, GOLD_LT + (a,), 7)
-        y += 70
-    # CTA button
+            track = max(1.0, (col_w - sub.getlength(sub_txt)) / max(1, len(sub_txt) - 1) * 0.35)
+            tw = sum(sub.getlength(c) for c in sub_txt) + track * (len(sub_txt) - 1)
+            text_spaced(ImageDraw.Draw(im), (cx - tw / 2, y + 8), sub_txt, sub,
+                        GOLD_LT + (a,), track)
+        y += sub_fit.size * 1.25
+
     bp = seg(tl, 1.7, 2.3)
     if bp > 0:
         e = ease_out_back(bp)
         label = "Play free in your browser"
-        bw = int(min(W * 0.80, 780))
-        bh = int(H * 0.062) if not wide else 100
-        by = y + 40 + (1 - e) * 40
+        bw = int(min(col_w, W * 0.80, 780))
+        bh = btn_h
+        by = y + g_btn + (1 - e) * 34
         bx = cx - bw / 2
-        f = fit_font(label, "display", "bold", bw - 190, int(bh * 0.44))
+        f = fit_font(label, "display", "bold", bw - bh * 1.5, int(bh * 0.44))
         a = 0.5 + 0.5 * math.sin(t * 4.4)
         halo = rr(bw + 48, bh + 48, 24, fill=None, outline=GOLD_LT + (int(60 + 70 * a),), ow=4)
         paste_c(im, halo, bx + bw / 2, by + bh / 2)
@@ -547,29 +572,32 @@ def scene_cta(im, lay, tl, t):
         ic = emoji_img("25B6", int(bh * 0.44))
         paste_c(im, ic, bx + bh * 0.62, by + bh / 2, int(255 * clamp(bp * 3)))
         ImageDraw.Draw(im).text((bx + bh * 1.0, by + bh / 2), label, font=f, fill=INK, anchor="lm")
-        y = by + bh + 34
-    # url chip
+        y = by + bh + g_chip
+
     up_ = seg(tl, 2.15, 2.75)
     if up_ > 0:
-        f = font("garamond", 42 if not wide else 38, "semibold")
+        f = fit_font(URL, "garamond", "semibold", col_w - 110, 42 if not wide else 38)
         tw = sum(f.getlength(c) for c in URL) + 1.6 * (len(URL) - 1)
-        chip = rr(int(tw + 100), int(92), 46, fill=(255, 255, 255, int(26 * up_)),
+        chip = rr(int(min(tw + 100, col_w)), chip_h, int(chip_h / 2),
+                  fill=(255, 255, 255, int(26 * up_)),
                   outline=GOLD_LT + (int(150 * up_),), ow=2)
-        paste_c(im, chip, cx, y + 46)
-        text_spaced(ImageDraw.Draw(im), (cx - tw / 2, y + 20), URL, f,
+        paste_c(im, chip, cx, y + chip_h / 2)
+        text_spaced(ImageDraw.Draw(im), (cx - tw / 2, y + chip_h / 2 - f.size * 0.62), URL, f,
                     PARCH + (int(255 * up_),), 1.6)
-        y += 118
+        y += chip_h + g_trust
+
     fp = seg(tl, 2.5, 3.05)
     if fp > 0:
         a = int(240 * ease_out_cubic(fp))
         line = "Free  ·  No account  ·  Private by design  ·  Works offline"
-        sf = font("garamond", 34 if not wide else 32)
-        ImageDraw.Draw(im).text((cx, y + 14), line, font=sf, fill=(234, 222, 200, a), anchor="ma")
+        sf = font("garamond", trust_size)
+        ImageDraw.Draw(im).text((cx, y), line, font=sf, fill=(234, 222, 200, a), anchor="ma")
         row = ["1F512", "1F4C1", "1F3EB", "2728"]
-        gap = 112
+        gap = icon_s * 2.0
         for i, ic in enumerate(row):
-            sprite = emoji_img(ic, 56)
-            paste_c(im, sprite, cx - gap * (len(row) - 1) / 2 + i * gap, y + 84, a)
+            sprite = emoji_img(ic, icon_s)
+            paste_c(im, sprite, cx - gap * (len(row) - 1) / 2 + i * gap,
+                    y + trust_size * 1.5 + g_icons + icon_s / 2, a)
     rs = np.random.RandomState(3)
     for i in range(18):
         ph = (tl * 0.15 + rs.rand()) % 1.0
@@ -694,7 +722,30 @@ def render_video(lay, out_path, fps=FPS, t0=0.0, t1=None, progress=True, jobs=No
                       flush=True)
     proc.stdin.close()
     proc.wait()
+    mux_audio(out_path, soundtrack())
     return out_path
+
+
+def soundtrack(path=None):
+    """Render the film's soundtrack (wav) if it is not already on disk."""
+    import audio
+
+    path = path or os.path.join(ROOT, "film", "audio", "promo-soundtrack.wav")
+    if not os.path.exists(path):
+        audio.write_wav(path, audio.build())
+    return path
+
+
+def mux_audio(video_path, audio_path):
+    """Replace the video's silent track with the score (AAC, faststart)."""
+    tmp = video_path.replace(".mp4", ".mux.mp4")
+    cmd = [ffmpeg(), "-y", "-loglevel", "error", "-i", video_path, "-i", audio_path,
+           "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+           "-map", "0:v:0", "-map", "1:a:0", "-shortest",
+           "-movflags", "+faststart", tmp]
+    subprocess.run(cmd, check=True)
+    os.replace(tmp, video_path)
+    return video_path
 
 
 def render_stills(lay, times, out_dir, tag=""):

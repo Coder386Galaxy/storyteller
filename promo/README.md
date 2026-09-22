@@ -19,9 +19,10 @@ Renders land in `promo/film/` (gitignored build output — regenerate any time).
 | `film/storyteller-cyop-promo-landscape.mp4` | YouTube / website hero (1920×1080) | 14.7 MB |
 | `film/posters/*.png` | thumbnails / covers — hook, product, reader, end card per aspect | |
 | `film/storyboard.png` | 16-frame storyboard for review | |
+| `film/audio/promo-soundtrack.wav` | the 30 s score, if you want to recut it yourself | |
 
-All three cuts are 30.4 s, 30 fps, H.264 `yuv420p` + `faststart`, and small enough
-to upload straight to any platform.
+All three cuts are 30.4 s, 30 fps, H.264 `yuv420p` + AAC stereo, `faststart`, and
+small enough to upload straight to any platform.
 
 To watch them, serve this folder and open `index.html`:
 
@@ -57,8 +58,27 @@ python tools/posters.py            # poster stills for every aspect
 `--check` renders a sparse set of times across the timeline and asserts that the
 caption block, frame edges and the phone mockup never collide or over-crop.
 
+## Sound
+
+The film ships with sound: a warm storybook score (harp arpeggios over soft pads,
+D-major with a lift into the victory) plus UI sound design tracked to the picture —
+typing ticks while the story is written, taps on the choices, a flourish on the
+trophy, a ding when the story publishes, a boom under the end card.
+
+```bash
+python src/audio.py                     # film/audio/promo-soundtrack.wav
+python src/audio.py /path/out.wav       # anywhere else
+```
+
+Everything is synthesised from scratch with numpy (`src/audio.py`) — bells, pads,
+swept noise whooshes, ticks, booms — so the sound is reproducible alongside the
+picture and needs no sample library. The cue list in `cues()` is written against
+the same times as `SCENES`, so picture and sound move together. `render.py` muxes
+the score in as AAC 192 kbps automatically when it encodes each cut.
+
 ## How it is built
 
+- `src/audio.py` — the score and sound design, synthesised from numpy.
 - `render.py` — timeline, layouts, camera, scene direction, encoder.
   One timeline drives all three aspects: the phone sits in the frame and the copy
   lives in the text zone for that aspect (top for 9:16, left for 1:1 / 16:9),

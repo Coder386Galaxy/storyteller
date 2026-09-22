@@ -28,6 +28,13 @@ playable story. Everything stays in your browser — no account, no server.
 Build your own adventure book — no code, no account, no server. Paste a draft and
 AI wires the branches for you. Link in bio 🔗
 
+## Sound
+
+The vertical and square cuts carry a 30-second storybook score: harp arpeggios
+over warm pads, lifting into the victory, with UI ticks, taps, a trophy flourish
+and a ding on publish — all tracked to the picture. Regenerate or re-time it with
+`python promo/src/audio.py` (numpy synthesis, no sample libraries).
+
 ## Hashtags
 
 #chooseyourownadventure #interactivefiction #writingcommunity #storytelling

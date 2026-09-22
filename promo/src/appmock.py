@@ -772,8 +772,10 @@ def draw_share(c: Ctx, st, t):
            name="garamond")
     tp = clamp(st.get("toast_p", 0.0))
     if tp > 0:
+        # float above the sheet: at sheet+404 the toast used to run past the
+        # bottom of the viewport and get cut off
         e = ease_out_cubic(tp)
-        ty = sy + 404 - (1 - e) * 24
+        ty = sy - 60 - (1 - e) * 22
         c.rect(APP_W / 2 - 105, ty, 210, 44, 10, fill=INK)
         c.emo("2705", APP_W / 2 - 81, ty + 22, 19, anchor="cc")
         c.text(APP_W / 2 - 64, ty + 22, "Code copied", size=14, color=PARCH, weight="bold",
