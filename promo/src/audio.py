@@ -163,12 +163,19 @@ def air(dur, f0, f1, amp=0.10, width=1.1, chunks=40):
     return out * amp * 3.2 / max(0.2, np.abs(out).max() / 0.35)
 
 
-def click(amp=0.14):
-    """UI tap: a short, low-passed tick — no bright fizz."""
+def click(amp=0.085):
+    """UI tap: a soft wooden thock.
+
+    Deliberately dark (noise under 1.6 kHz + a 900 Hz body): the first pass was
+    voiced around 2-3 kHz, which read as a bright fizz on phone speakers and was
+    what made the typing and the AI-processing sections sound odd.
+    """
     t = _t(0.06)
-    body = _fft_lowpass(np.random.randn(len(t)), 3200.0, 1.6)
-    body *= np.exp(-t * 150)
-    body += np.sin(2 * np.pi * 1500 * t) * np.exp(-t * 120) * 0.25
+    body = _fft_lowpass(np.random.randn(len(t)), 1600.0, 1.8)
+    body *= np.exp(-t * 130)
+    body += np.sin(2 * np.pi * 880 * t) * np.exp(-t * 90) * 0.35
+    body += np.sin(2 * np.pi * 220 * t) * np.exp(-t * 70) * 0.18
+    body = _fft_lowpass(body, 4500.0, 1.4)
     return body / max(1e-9, np.abs(body).max()) * amp
 
 
@@ -368,11 +375,11 @@ def _hold_peaks(x, ceiling=0.89, attack=0.004, release=0.16):
 def build(duration=TOTAL):
     n = _n(duration)
     np.random.seed(20260922)
-    mix = music(n) * 1.0 + cues(n) * 1.1
+    mix = music(n) * 1.0 + cues(n) * 1.0
     mix = _fft_highshelf_cut(mix, 6500.0, -2.5)      # take the edge off
     mix = _fft_lowpass(mix, 14000.0, 1.2)            # and the fizzy top
     mix = _fft_lowshelf(mix, 230.0, 3.0)             # body back in the low end
-    mix = _hold_peaks(mix, 0.9)
+    mix = _hold_peaks(mix, 0.85)
     fi, fo = _n(0.45), _n(1.0)
     mix[:fi] *= np.linspace(0, 1, fi) ** 1.2
     mix[-fo:] *= np.linspace(1, 0, fo) ** 1.25
@@ -387,13 +394,13 @@ def build(duration=TOTAL):
     # normalise the finished mix to a broadcast-ish level: loud enough for a
     # feed, with headroom left for the AAC encode
     peak = float(np.max(np.abs(stereo))) or 1.0
-    stereo *= min(0.95 / peak, 3.2)
+    stereo *= min(0.90 / peak, 3.2)
     rms = float(np.sqrt((stereo ** 2).mean()))
     if rms > 0:
         stereo *= min(1.0, 0.145 / rms)
     peak = float(np.max(np.abs(stereo))) or 1.0
-    if peak > 0.95:
-        stereo *= 0.95 / peak
+    if peak > 0.89:
+        stereo *= 0.89 / peak
     return stereo
 
 
